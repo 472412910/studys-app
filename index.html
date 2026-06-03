@@ -51,7 +51,18 @@
     .card-item { background: var(--surface); padding: 16px; border-radius: 10px; margin-bottom: 12px; box-shadow: var(--shadow-sm); display: flex; justify-content: space-between; align-items: center; text-align: left; }
     .card-info { font-size: 0.9rem; line-height: 1.6; flex: 1; padding-right: 15px; }
     .timer-display { font-size: 4rem; font-weight: bold; margin: 30px 0; font-family: monospace; text-align: center; }
+    .dev-badge { display: inline-block; background: #e0e0e0; color: #666; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle;}
     .status-msg { font-size: 0.85rem; color: var(--text-sub); margin-bottom: 15px; text-align: center; min-height: 1.2rem; }
+    
+    .ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
+    .ranking-item:last-child { border-bottom: none; }
+    .rank-badge { font-weight: bold; font-size: 1.2rem; width: 30px; text-align: center; margin-right: 15px; color: var(--text-sub); }
+    .rank-1 { color: #FFD700; font-size: 1.5rem; }
+    .rank-2 { color: #C0C0C0; font-size: 1.4rem; }
+    .rank-3 { color: #CD7F32; font-size: 1.3rem; }
+    .rank-name { flex: 1; font-weight: bold; font-size: 1.1rem; }
+    .rank-time { color: var(--accent); font-weight: bold; font-size: 1.2rem; }
+
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
@@ -78,14 +89,25 @@
 
     <main class="main-content">
       <div id="status-app" class="status-msg" style="margin-bottom: 10px;"></div>
+      
       <div id="view-menu" class="main-view">
-        <div class="menu-item" onclick="alert('ランキング機能は現在開発中です。')">ランキング</div><div class="divider"></div>
+        <div class="menu-item" onclick="switchView('ranking')">ランキング</div><div class="divider"></div>
         <div class="menu-item" onclick="window.open('https://docs.google.com/forms/d/e/1FAIpQLSet9BAFH70rwi82S_8EoT-5Vf9LwZSRJPhgRj8G2conmltxSg/viewform?usp=dialog', '_blank')">サポート（FAQ）</div><div class="divider"></div>
       </div>
+
+      <div id="view-ranking" class="main-view">
+        <h2 class="section-title">本日の学習ランキング</h2>
+        <p style="text-align:center; color:var(--text-sub); font-size:0.85rem; margin-bottom:15px;">※今日（0時以降）の学習時間が表示されます</p>
+        <div class="list-card" id="rankingListArea">
+          <p style="text-align:center; color:#888;">ランキング読込中...</p>
+        </div>
+      </div>
+
       <div id="view-home" class="main-view active">
         <h2 class="section-title">本日の学習項目</h2>
         <div class="list-card"><div class="list-item">英語：６０分</div><div class="list-item">数学：６０分</div><div class="list-item">国語：６０分</div></div>
       </div>
+
       <div id="view-library" class="main-view">
         <div id="subjectSection" class="form-group hidden">
           <label>現在の教科（シート）</label>
@@ -168,14 +190,28 @@
 
 <script>
   const $ = id => document.getElementById(id), msg = m => [$('status'), $('status-app')].forEach(el => el && (el.innerText = m)), show = (id, s=true) => $(id).classList.toggle('hidden', !s);
-  const state = { clientId: '973807059867-6f1lvggt9jm3b9a7u6um5rd87j4rsbdv.apps.googleusercontent.com', token: '', sheetId: localStorage.getItem('studySyncSheetId') || '', nick: localStorage.getItem('studySyncNickname') || '', subject: 'Cards', subs: [], cards: [], queue: [], curIdx: -1, timer: 0, intv: null, timerSubject: '国語', chartInstance: null };
+  
+  const state = { 
+    clientId: '973807059867-6f1lvggt9jm3b9a7u6um5rd87j4rsbdv.apps.googleusercontent.com', 
+    token: '', 
+    sheetId: localStorage.getItem('studySyncSheetId') || '', 
+    nick: localStorage.getItem('studySyncNickname') || '', 
+    subject: 'Cards', subs: [], cards: [], queue: [], curIdx: -1, timer: 0, intv: null, timerSubject: '国語', chartInstance: null,
+    
+    // ★ここで「マスターシートのID」を固定で登録します（あなたが作成した共有用シートのIDに書き換えてください）
+    masterSheetId: '1rpP2oDsemJsw8ICJOBTqNkycQR-V2eIQ6fQzbiaYHdQ'
+  };
 
   function switchView(view) {
     document.querySelectorAll('.main-view, .nav-item').forEach(el => el.classList.remove('active'));
-    $(`view-${view}`).classList.add('active'); if(view !== 'menu') $(`nav-${view}`).classList.add('active');
+    $(`view-${view}`).classList.add('active'); if(view !== 'menu' && view !== 'ranking') $(`nav-${view}`).classList.add('active');
     const isHome = view === 'home'; show('headerTabs', isHome); show('headerTitle', !isHome);
-    if(!isHome) $('viewTitle').innerText = {library:'ライブラリ', report:'レポート', mypage:'マイページ', menu:'メニュー'}[view] || '';
-    if(state.sheetId) { if(view === 'library') fetchCards(); if(view === 'report') fetchReport(); }
+    if(!isHome) $('viewTitle').innerText = {library:'ライブラリ', report:'レポート', mypage:'マイページ', menu:'メニュー', ranking:'ランキング'}[view] || '';
+    if(state.sheetId) { 
+      if(view === 'library') fetchCards(); 
+      if(view === 'report') fetchReport(); 
+    }
+    if(view === 'ranking') fetchRanking(); 
   }
   function toggleMenu() { switchView($('view-menu').classList.contains('active') ? 'home' : 'menu'); }
   function switchLibTab(tab) {
@@ -184,10 +220,11 @@
     if(state.sheetId && tab === 'anki') fetchCards(); if(tab === 'list') renderList();
   }
 
-  async function sheetApi(path, method='GET', body=null) {
+  async function sheetApi(path, method='GET', body=null, targetId = state.sheetId) {
+    if (!targetId) throw new Error("Sheet ID is missing");
     const opts = { method, headers: { Authorization: `Bearer ${state.token}` } };
     if(body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-    const res = await fetch(path.startsWith('http') ? path : `https://sheets.googleapis.com/v4/spreadsheets/${state.sheetId}${path}`, opts);
+    const res = await fetch(path.startsWith('http') ? path : `https://sheets.googleapis.com/v4/spreadsheets/${targetId}${path}`, opts);
     if(!res.ok) throw new Error(await res.text());
     return res.headers.get('content-type')?.includes('json') ? res.json() : res;
   }
@@ -335,10 +372,39 @@
     const halfYearAgo = new Date(); halfYearAgo.setMonth(halfYearAgo.getMonth() - 6);
     const newLogs = logsData.filter(r => r[0] && (isNaN(new Date(r[0]).getTime()) || new Date(r[0]) >= halfYearAgo));
     newLogs.push([new Date().toLocaleString(), currentSub, minutes]);
-    await Promise.all([
+    
+    const updates = [
       sheetApi('/values/ReportSummary!A2:B:clear', 'POST').then(() => summaryData.length && sheetApi('/values/ReportSummary!A2:B?valueInputOption=USER_ENTERED', 'PUT', { values: summaryData })),
       sheetApi('/values/Logs!A2:C:clear', 'POST').then(() => newLogs.length && sheetApi('/values/Logs!A2:C?valueInputOption=USER_ENTERED', 'PUT', { values: newLogs }))
-    ]);
+    ];
+
+    if (state.masterSheetId && state.masterSheetId !== 'YOUR_MASTER_SHEET_ID_HERE') {
+      updates.push((async () => {
+        try {
+          const todayStr = new Date().toLocaleDateString('ja-JP'); 
+          const resRank = await sheetApi('/values/Ranking!A2:C', 'GET', null, state.masterSheetId).catch(()=>({}));
+          let rankData = resRank.values || [];
+          
+          let rankFound = false;
+          rankData = rankData.map(r => {
+            if (r[0] === todayStr && r[1] === state.nick) {
+              rankFound = true;
+              return [r[0], r[1], (parseFloat(r[2] || 0) + minutes).toFixed(1)];
+            }
+            return r;
+          });
+          
+          if (!rankFound && state.nick) rankData.push([todayStr, state.nick, minutes.toFixed(1)]);
+
+          await sheetApi('/values/Ranking!A2:C:clear', 'POST', null, state.masterSheetId);
+          if (rankData.length > 0) {
+            await sheetApi('/values/Ranking!A2:C?valueInputOption=USER_ENTERED', 'PUT', { values: rankData }, state.masterSheetId);
+          }
+        } catch(e) { console.error("ランキング送信エラー:", e); }
+      })());
+    }
+
+    await Promise.all(updates);
   }
 
   $('startTimer').onclick = () => {
@@ -387,8 +453,54 @@
     } catch { msg('レポート読込失敗'); }
   }
 
+  async function fetchRanking() {
+    if (!state.masterSheetId || state.masterSheetId === 'YOUR_MASTER_SHEET_ID_HERE') {
+      $('rankingListArea').innerHTML = '<p style="text-align:center; color:#E74C3C;">管理者設定：マスターシートIDが未設定です。</p>';
+      return;
+    }
+    msg('ランキング読込中...');
+    try {
+      const res = await sheetApi('/values/Ranking!A2:C', 'GET', null, state.masterSheetId);
+      const rows = res.values || [];
+      const todayStr = new Date().toLocaleDateString('ja-JP');
+
+      const todayRanking = rows
+        .filter(r => r[0] === todayStr && r[1] && r[2]) 
+        .map(r => ({ name: r[1], time: parseFloat(r[2]) }))
+        .sort((a, b) => b.time - a.time);
+
+      if (todayRanking.length === 0) {
+        $('rankingListArea').innerHTML = '<p style="text-align:center; color:#888;">今日の学習記録はまだありません</p>';
+      } else {
+        let html = '';
+        todayRanking.forEach((item, index) => {
+          const rankNum = index + 1;
+          let rankClass = '';
+          if (rankNum === 1) rankClass = 'rank-1';
+          if (rankNum === 2) rankClass = 'rank-2';
+          if (rankNum === 3) rankClass = 'rank-3';
+
+          html += `
+            <div class="ranking-item">
+              <div class="rank-badge ${rankClass}">${rankNum}</div>
+              <div class="rank-name">${item.name}</div>
+              <div class="rank-time">${item.time.toFixed(1)} <span style="font-size:0.8rem; color:#888;">分</span></div>
+            </div>
+          `;
+        });
+        $('rankingListArea').innerHTML = html;
+      }
+      msg('ランキング更新完了');
+    } catch (e) {
+      $('rankingListArea').innerHTML = '<p style="text-align:center; color:#E74C3C;">ランキングの取得に失敗しました。<br>権限設定を確認してください。</p>';
+      msg('ランキング読込エラー');
+      console.error(e);
+    }
+  }
+
   function saveMyPage() {
     const id = $('inSheetId').value.trim(), nick = $('inNick').value.trim(); if(!id) return alert('IDを入力してください');
+    if(!nick) return alert('ランキング参加のためニックネームを入力してください'); 
     localStorage.setItem('studySyncSheetId', state.sheetId = id); localStorage.setItem('studySyncNickname', state.nick = nick);
     alert('保存しました！'); if(nick) msg(`ようこそ、${nick}さん！`); fetchSubs(); switchView('library'); switchLibTab('anki');
   }
