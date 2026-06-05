@@ -105,6 +105,10 @@
 
       <div id="view-home" class="main-view active">
         <h2 class="section-title">本日の学習項目</h2>
+        <div class="list-card" style="margin-bottom: 15px; text-align: center;">
+          <h3 style="font-size:0.9rem; color:var(--text-sub);">みんなの1日あたりの平均学習時間</h3>
+          <p id="globalAvgTimeDisp" style="color:var(--accent); font-weight:bold; font-size:1.5rem; margin-top:5px;">計算中...</p>
+        </div>
         <div class="list-card"><div class="list-item">英語：６０分</div><div class="list-item">数学：６０分</div><div class="list-item">国語：６０分</div></div>
       </div>
 
@@ -212,6 +216,7 @@
       if(view === 'report') fetchReport(); 
     }
     if(view === 'ranking') fetchRanking(); 
+    if(view === 'home') fetchGlobalAverage(); // ★この行を追加
   }
   function toggleMenu() { switchView($('view-menu').classList.contains('active') ? 'home' : 'menu'); }
   function switchLibTab(tab) {
@@ -236,7 +241,7 @@
         if(res.access_token) {
           state.token = res.access_token; show('loginSection', false); show('appSection', true);
           $('inSheetId').value = state.sheetId; $('inNick').value = state.nick;
-          if(state.sheetId) { await fetchSubs(); fetchCards(); msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); }
+          if(state.sheetId) { await fetchSubs(); fetchCards(); fetchGlobalAverage(); msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); }
           else { switchView('mypage'); msg('最初にIDを登録してください'); }
         }
       }
@@ -503,6 +508,41 @@
     if(!nick) return alert('ランキング参加のためニックネームを入力してください'); 
     localStorage.setItem('studySyncSheetId', state.sheetId = id); localStorage.setItem('studySyncNickname', state.nick = nick);
     alert('保存しました！'); if(nick) msg(`ようこそ、${nick}さん！`); fetchSubs(); switchView('library'); switchLibTab('anki');
+  }
+
+// ★追加：全ユーザーの1日あたりの平均学習時間を計算
+async function fetchGlobalAverage() {
+    if(!state.masterSheetId || state.masterSheetId === 'YOUR_MASTER_SHEET_ID_HERE') {
+      $('globalAvgTimeDisp').innerText = '未設定';
+      return;
+    }
+    try {
+      const res = await sheetApi('/values/Ranking!A2:C', 'GET', null, state.masterSheetId).catch(()=>({}));
+      const rows = res.values || [];
+      if(!rows.length) {
+        $('globalAvgTimeDisp').innerText = '0.0 分';
+        return;
+      }
+      
+      let totalMinutes = 0;
+      let validRecords = 0;
+      
+      // 全データを足し合わせて、行数（記録日数×人数）で割る
+      rows.forEach(row => {
+        const time = parseFloat(row[2]);
+        if(!isNaN(time)) {
+          totalMinutes += time;
+          validRecords++;
+        }
+      });
+      
+      const average = validRecords > 0 ? (totalMinutes / validRecords) : 0;
+      $('globalAvgTimeDisp').innerText = `${average.toFixed(1)} 分`;
+      
+    } catch(e) {
+      $('globalAvgTimeDisp').innerText = 'エラー';
+      console.error(e);
+    }
   }
 </script>
 </body>
