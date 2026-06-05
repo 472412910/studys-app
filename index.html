@@ -504,10 +504,32 @@
   }
 
   function saveMyPage() {
-    const id = $('inSheetId').value.trim(), nick = $('inNick').value.trim(); if(!id) return alert('IDを入力してください');
+    const id = $('inSheetId').value.trim(), nick = $('inNick').value.trim(); 
+    if(!id) return alert('IDを入力してください');
     if(!nick) return alert('ランキング参加のためニックネームを入力してください'); 
-    localStorage.setItem('studySyncSheetId', state.sheetId = id); localStorage.setItem('studySyncNickname', state.nick = nick);
-    alert('保存しました！'); if(nick) msg(`ようこそ、${nick}さん！`); fetchSubs(); switchView('library'); switchLibTab('anki');
+
+    // ★追加：ニックネームの変更を1日1回に制限
+    const todayStr = new Date().toLocaleDateString('ja-JP');
+    const lastChanged = localStorage.getItem('studySyncNickLastChanged');
+    
+    // 既に名前があり、新しい名前に変えようとした際、今日すでに変更済みならブロック
+    if (state.nick && state.nick !== nick && lastChanged === todayStr) {
+      return alert('ニックネームの変更は1日1回までです。明日以降に変更してください。');
+    }
+    
+    // 名前が新しく設定・変更された場合は、変更日（今日）を記憶する
+    if (state.nick !== nick) {
+      localStorage.setItem('studySyncNickLastChanged', todayStr);
+    }
+
+    // 保存処理
+    localStorage.setItem('studySyncSheetId', state.sheetId = id); 
+    localStorage.setItem('studySyncNickname', state.nick = nick);
+    alert('保存しました！'); 
+    if(nick) msg(`ようこそ、${nick}さん！`); 
+    fetchSubs(); 
+    switchView('library'); 
+    switchLibTab('anki');
   }
 
 // ★追加：全ユーザーの1日あたりの平均学習時間を計算
