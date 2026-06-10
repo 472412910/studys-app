@@ -241,7 +241,14 @@
         if(res.access_token) {
           state.token = res.access_token; show('loginSection', false); show('appSection', true);
           $('inSheetId').value = state.sheetId; $('inNick').value = state.nick;
-          if(state.sheetId) { await fetchSubs(); fetchCards(); fetchGlobalAverage(); msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); }
+                
+                // ★追加：今日すでに名前を設定していれば、入力欄をロック（操作不可）にする
+                const todayStr = new Date().toLocaleDateString('ja-JP');
+                if (localStorage.getItem('studySyncNickLastChanged') === todayStr && state.nick) {
+                  $('inNick').disabled = true;
+                }
+
+                if(state.sheetId) { await fetchSubs(); fetchCards(); fetchGlobalAverage(); msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); }
           else { switchView('mypage'); msg('最初にIDを登録してください'); }
         }
       }
@@ -517,9 +524,10 @@
       return alert('ニックネームの変更は1日1回までです。明日以降に変更してください。');
     }
     
-    // 名前が新しく設定・変更された場合は、変更日（今日）を記憶する
+    // 名前が新しく設定・変更された場合は、変更日（今日）を記憶し、入力欄をロック
     if (state.nick !== nick) {
       localStorage.setItem('studySyncNickLastChanged', todayStr);
+      $('inNick').disabled = true; // ★追加：保存と同時にロックする
     }
 
     // 保存処理
@@ -532,7 +540,7 @@
     switchLibTab('anki');
   }
 
-// ★追加：全ユーザーの1日あたりの平均学習時間を計算
+// ★追加：全ユーザーの「今日」の平均学習時間を計算
 async function fetchGlobalAverage() {
     if(!state.masterSheetId || state.masterSheetId === 'YOUR_MASTER_SHEET_ID_HERE') {
       $('globalAvgTimeDisp').innerText = '未設定';
@@ -549,12 +557,18 @@ async function fetchGlobalAverage() {
       let totalMinutes = 0;
       let validRecords = 0;
       
-      // 全データを足し合わせて、行数（記録日数×人数）で割る
+      // ★追加：今日の日付を取得（形式: YYYY/MM/DD など環境に依存しますが、記録時と同じ ja-JP を使います）
+      const todayStr = new Date().toLocaleDateString('ja-JP');
+      
+      // ★修正：今日のデータだけを対象に足し合わせて割る
       rows.forEach(row => {
-        const time = parseFloat(row[2]);
-        if(!isNaN(time)) {
-          totalMinutes += time;
-          validRecords++;
+        // row[0]には日付が入っているので、今日の日付と一致するか確認
+        if (row[0] === todayStr) {
+          const time = parseFloat(row[2]);
+          if(!isNaN(time)) {
+            totalMinutes += time;
+            validRecords++;
+          }
         }
       });
       
