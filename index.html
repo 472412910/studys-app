@@ -419,28 +419,54 @@
     await Promise.all(updates);
   }
 
-  $('startTimer').onclick = () => {
+// ===== ここからタイマー関連の処理を書き換え =====
+
+$('startTimer').onclick = () => {
     show('startTimer', false); show('stopTimer', true); state.timerSubject = $('timerSubSelect').value;
-    state.intv = setInterval(() => { state.timer++; $('timerDisp').innerText = [Math.floor(state.timer/3600), Math.floor((state.timer%3600)/60), state.timer%60].map(v => String(v).padStart(2,'0')).join(':'); }, 1000);
+    
+    // ★追加：開始した瞬間の「正確な時刻（ミリ秒）」を記憶しておく
+    state.startTime = Date.now(); 
+    
+    state.intv = setInterval(() => { 
+      // ★変更：単に+1するのではなく、「現在時刻」と「開始時刻」の差を計算して経過秒数を出す
+      state.timer = Math.floor((Date.now() - state.startTime) / 1000);
+      $('timerDisp').innerText = [Math.floor(state.timer/3600), Math.floor((state.timer%3600)/60), state.timer%60].map(v => String(v).padStart(2,'0')).join(':'); 
+    }, 1000);
   };
   
   $('stopTimer').onclick = async () => {
     if(!checkId()) return; clearInterval(state.intv); state.intv = null; msg('記録保存中...');
+    
+    // ★追加：念のため、ストップを押した瞬間にもう一度正確な経過時間を計算する
+    if (state.startTime) {
+      state.timer = Math.floor((Date.now() - state.startTime) / 1000);
+    }
+    
     try {
       await saveStudyLog(state.timerSubject || $('timerSubSelect').value || '国語', parseFloat((state.timer / 60).toFixed(1)));
-      state.timer = 0; $('timerDisp').innerText = '00:00:00'; show('startTimer', true); show('stopTimer', false); msg('保存完了'); await fetchReport();
+      // ★追加：startTimeも空っぽに戻しておく
+      state.timer = 0; state.startTime = null; $('timerDisp').innerText = '00:00:00'; show('startTimer', true); show('stopTimer', false); msg('保存完了'); await fetchReport();
     } catch { msg('保存失敗'); }
   };
 
   async function changeTimerSub() {
     const newSub = $('timerSubSelect').value;
     if(state.intv && state.timer > 0) {
+      // ★追加：途中で教科を変えた時も、その時点での正確な経過時間を計算して保存
+      state.timer = Math.floor((Date.now() - state.startTime) / 1000);
+      
       msg('これまでの教科の記録を保存中...');
       try { await saveStudyLog(state.timerSubject || '国語', parseFloat((state.timer / 60).toFixed(1))); msg('前教科の記録を保存しました'); await fetchReport(); } catch { msg('一部保存失敗'); }
-      state.timer = 0; $('timerDisp').innerText = '00:00:00';
+      
+      state.timer = 0; 
+      // ★追加：次の教科がここからスタートするため、開始時刻を「今」にリセットする
+      state.startTime = Date.now(); 
+      $('timerDisp').innerText = '00:00:00';
     }
     state.timerSubject = newSub;
   }
+
+  // ===== ここまで =====
 
   async function fetchReport() {
     if(!checkId()) return; msg('レポート読込中...');
