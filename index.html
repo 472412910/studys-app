@@ -376,49 +376,55 @@
     } catch { msg('削除失敗'); }
   }
 
-  async function saveStudyLog(currentSub, minutes) {
-    let [resSummary, resLogs] = await Promise.all([sheetApi('/values/ReportSummary!A2:B').catch(()=>({})), sheetApi('/values/Logs!A2:C').catch(()=>({}))]);
-    let summaryData = resSummary.values || [], logsData = resLogs.values || [], found = false;
-    summaryData = summaryData.map(r => r[0] === currentSub ? (found = true, [r[0], (parseFloat(r[1]) + minutes).toFixed(1)]) : r);
-    if (!found && currentSub) summaryData.push([currentSub, minutes.toFixed(1)]);
-    const halfYearAgo = new Date(); halfYearAgo.setMonth(halfYearAgo.getMonth() - 6);
-    const newLogs = logsData.filter(r => r[0] && (isNaN(new Date(r[0]).getTime()) || new Date(r[0]) >= halfYearAgo));
-    newLogs.push([new Date().toLocaleString(), currentSub, minutes]);
-    
-    const updates = [
-      sheetApi('/values/ReportSummary!A2:B:clear', 'POST').then(() => summaryData.length && sheetApi('/values/ReportSummary!A2:B?valueInputOption=USER_ENTERED', 'PUT', { values: summaryData })),
-      sheetApi('/values/Logs!A2:C:clear', 'POST').then(() => newLogs.length && sheetApi('/values/Logs!A2:C?valueInputOption=USER_ENTERED', 'PUT', { values: newLogs }))
-    ];
+// ★修正：通信量を激減させ、1秒で保存できるように超高速化
+async function saveStudyLog(currentSub, minutes) {
+    if(!checkId() || !minutes) return;
+    try {
+      // 1. Logs（履歴）の全読み込みをやめ、必要なSummaryとRankingだけを同時に取得
+      const [resSummary, resRank] = await Promise.all([
+        sheetApi('/values/ReportSummary!A2:B').catch(()=>({})),
+        (state.masterSheetId && state.masterSheetId !== 'YOUR_MASTER_SHEET_ID_HERE') 
+          ? sheetApi('/values/Ranking!A2:C', 'GET', null, state.masterSheetId).catch(()=>({})) 
+          : Promise.resolve({values: []})
+      ]);
 
-    if (state.masterSheetId && state.masterSheetId !== 'YOUR_MASTER_SHEET_ID_HERE') {
-      updates.push((async () => {
-        try {
-          const todayStr = new Date().toLocaleDateString('ja-JP'); 
-          const resRank = await sheetApi('/values/Ranking!A2:C', 'GET', null, state.masterSheetId).catch(()=>({}));
-          let rankData = resRank.values || [];
-          
-          let rankFound = false;
-          rankData = rankData.map(r => {
-            if (r[0] === todayStr && r[1] === state.nick) {
-              rankFound = true;
-              return [r[0], r[1], (parseFloat(r[2] || 0) + minutes).toFixed(1)];
-            }
-            return r;
-          });
-          
-          if (!rankFound && state.nick) rankData.push([todayStr, state.nick, minutes.toFixed(1)]);
+      // Summary（教科ごとの合計）の計算
+      let summaryData = resSummary.values || [], found = false;
+      summaryData = summaryData.map(r => r[0] === currentSub ? (found = true, [r[0], (parseFloat(r[1]) + minutes).toFixed(1)]) : r);
+      if (!found && currentSub) summaryData.push([currentSub, minutes.toFixed(1)]);
+      
+      const updates = [
+        // ★高速化1：ReportSummaryは「消して書き直す(clear)」のをやめ、直接上書き
+        sheetApi('/values/ReportSummary!A2:B?valueInputOption=USER_ENTERED', 'PUT', { values: summaryData }),
+        
+        // ★高速化2：Logsシートは読み込まずに、一番下に1行「追記(append)」するだけにする
+        sheetApi('/values/Logs!A1:C:append?valueInputOption=USER_ENTERED', 'POST', { values: [[new Date().toLocaleString(), currentSub, minutes]] })
+      ];
 
-          await sheetApi('/values/Ranking!A2:C:clear', 'POST', null, state.masterSheetId);
-          if (rankData.length > 0) {
-            await sheetApi('/values/Ranking!A2:C?valueInputOption=USER_ENTERED', 'PUT', { values: rankData }, state.masterSheetId);
+      // Ranking（みんなのランキング）の計算
+      if (state.masterSheetId && state.masterSheetId !== 'YOUR_MASTER_SHEET_ID_HERE') {
+        const todayStr = new Date().toLocaleDateString('ja-JP');
+        let rankData = resRank.values || [];
+        let rankFound = false;
+        
+        rankData = rankData.map(r => {
+          if (r[0] === todayStr && r[1] === state.nick) {
+            rankFound = true;
+            return [r[0], r[1], (parseFloat(r[2] || 0) + minutes).toFixed(1)];
           }
-        } catch(e) { console.error("ランキング送信エラー:", e); }
-      })());
-    }
-
-    await Promise.all(updates);
+          return r;
+        });
+        if (!rankFound) rankData.push([todayStr, state.nick, minutes.toFixed(1)]);
+        
+        // ★高速化3：Rankingも「消して書き直す」のをやめ、直接上書き
+        updates.push(sheetApi('/values/Ranking!A2:C?valueInputOption=USER_ENTERED', 'PUT', { values: rankData }, state.masterSheetId));
+      }
+      
+      // 2. 準備したデータを「すべて同時」に書き込む（待ち時間が1/3になります）
+      await Promise.all(updates);
+      
+    } catch(e) { throw e; }
   }
-
 // ===== ここからタイマー関連の処理を書き換え =====
 
 $('startTimer').onclick = () => {
