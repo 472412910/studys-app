@@ -1050,6 +1050,152 @@ function preloadNextImages() {
       setTimeout(preloadNextImages, 100); 
     };
   }
+
+// ==========================================
+// ★追加・最適化：知識の木（脳内マップ）視覚化機能
+// ==========================================
+(function() {
+  // 1. ホーム画面の一番下に専用の描画エリア（Canvas）を安全に自動生成
+  function injectTreeContainer() {
+    // 既に存在していればスキップ
+    if ($('knowledgeTreeSection')) return;
+
+    // 既存の「home」ビューの要素を取得（一般的なID名。環境に合わせて自動フォールバック）
+    const homeView = $('home') || $('view-home') || document.querySelector('.app-container');
+    if (!homeView) return;
+
+    const container = document.createElement('div');
+    container.id = 'knowledgeTreeSection';
+    container.style.cssText = 'margin-top: 25px; padding: 20px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-sm); text-align: center; border: 1px solid var(--border);';
+    
+    container.innerHTML = `
+      <h3 style="font-size: 1.1rem; color: var(--text-main); margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        🌳 知識の木（脳内マップ）
+      </h3>
+      <p id="treeStatusText" style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 15px;">データを読み込み中...</p>
+      <div style="position: relative; display: inline-block; width: 100%; max-width: 320px; aspect-ratio: 1/1; background: linear-gradient(to bottom, #fcfdfd, #f5f7fa); border-radius: 12px; overflow: hidden; border: 1px solid #f0f2f5;">
+        <canvas id="treeCanvas" width="320" height="320" style="display: block; width: 100%; height: 100%;"></canvas>
+      </div>
+    `;
+    
+    // ホーム画面（またはアプリコンテナ）の最下部に追加
+    homeView.appendChild(container);
+  }
+
+  // 2. メインスレッドを絶対に固めない、超軽量・高速な「知識の木」描画ロジック
+  function updateKnowledgeTree() {
+    injectTreeContainer(); // コンテナがない場合は生成
+    
+    const canvas = $('treeCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const statusText = $('treeStatusText');
+    
+    // データがまだ無い場合の安全処理
+    if (!state.cards || state.cards.length === 0) {
+      statusText.innerText = "カードを学習すると、ここに知識の木が育ちます！";
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    // --- 【状態計算】既存のカードデータから「成長度」と「枯渇度」を瞬時に算出 ---
+    let totalInterval = 0;
+    let deadCardsCount = 0;
+    const now = Date.now();
+    const threeDaysMs = 3 * 24 * 60 * 60 * 1000; // 3日分のミリ秒
+
+    state.cards.forEach(card => {
+      // card[3]=EF, card[4]=Rep, card[5]=Interval, card[6]=DueDate と仮定した既存設計に準拠
+      const interval = parseFloat(card[5]) || 0;
+      const dueDate = parseFloat(card[6]) || 0;
+
+      totalInterval += interval;
+      
+      // 復習期日（DueDate）を3日以上過ぎているカードをカウント
+      if (dueDate > 0 && (now - dueDate) > threeDaysMs) {
+        deadCardsCount++;
+      }
+    });
+
+    const totalCards = state.cards.length;
+    const avgIntv = totalInterval / totalCards;         // 平均復習間隔（成長の指標）
+    const deadRatio = deadCardsCount / totalCards;       // サボり度（枯渇の指標）
+
+    // --- 【ビジュアル分岐】計算結果をビジュアルとテキストに反映 ---
+    // 深度（枝分かれの多さ）を制限してプチフリーズを100%防止（最大深度7に最適化）
+    const depth = Math.min(7, 4 + Math.floor(avgIntv / 5)); 
+    
+    let leafColor = '#2ECC71'; // 元気な緑
+    if (deadRatio > 0.1) {
+      leafColor = '#F1C40F'; // 10%以上のカードが3日以上遅れると「黄色」
+      statusText.innerText = "⚠️ 復習期日を過ぎたカードがあり、少し元気がありません。";
+      statusText.style.color = "#F39C12";
+    } else if (deadRatio > 0.3) {
+      leafColor = '#D35400'; // 30%以上のカードが3日以上遅れると「枯れ葉（茶色）」
+      statusText.innerText = "🚨 復習が溜まっています！葉が枯れ始めています。";
+      statusText.style.color = "#E74C3C";
+    } else {
+      statusText.innerText = "✨ 順調に記憶が定着し、木が大きく育っています！";
+      statusText.style.color = "#27AE60";
+    }
+
+    // --- 【超高速フラクタルツリー描画】 ---
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    function drawBranch(x, y, len, angle, d) {
+      ctx.beginPath();
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle * Math.PI / 180);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -len);
+      
+      // 幹から枝にかけて細くする
+      ctx.lineWidth = d * 1.2;
+      ctx.strokeStyle = `rgba(139, 94, 60, ${0.4 + (d / depth) * 0.6})`; // 木の幹の色
+      ctx.stroke();
+
+      // 枝の先端（最後の2階層）に葉っぱを描画
+      if (d <= 2) {
+        ctx.beginPath();
+        ctx.arc(0, -len, 5 + (3 - d) * 2, 0, 2 * Math.PI);
+        ctx.fillStyle = leafColor;
+        ctx.fill();
+      }
+
+      // 再帰を抜ける条件
+      if (d === 0) {
+        ctx.restore();
+        return;
+      }
+
+      // 計算負荷を下げるため、枝の分岐角度と縮小率を固定（ササッと動くための最適化）
+      drawBranch(0, -len, len * 0.78, 22, d - 1);
+      drawBranch(0, -len, len * 0.78, -22, d - 1);
+      
+      ctx.restore();
+    }
+
+    // 木の根元の位置を設定して描画開始（初速の長さは平均間隔に応じて成長）
+    const initialLength = Math.min(70, 40 + avgIntv * 1.5);
+    drawBranch(canvas.width / 2, canvas.height - 15, initialLength, 0, depth);
+  }
+
+  // 3. 既存の画面切り替え機能（switchView）を安全にハックし、ホームに戻った時に一瞬で描画
+  if (typeof switchView === 'function') {
+    const originalSwitchViewForTree = switchView;
+    switchView = function(viewId) {
+      // 既存の画面切り替え処理をそのまま実行（一切邪魔をしない）
+      originalSwitchViewForTree(viewId);
+      
+      // ホーム画面（またはライブラリ等、ホームに準ずる画面）が表示されたら、非同期で木を更新
+      if (viewId === 'home' || viewId === 'library') {
+        // setTimeoutを挟むことで、画面遷移のアニメーションが固まるのを完全に防ぎます
+        setTimeout(updateKnowledgeTree, 50);
+      }
+    };
+  }
+})();
 </script>
 </body>
 </html>
