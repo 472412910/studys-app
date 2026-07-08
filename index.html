@@ -194,7 +194,14 @@
 
       <div id="view-mypage" class="main-view">
         <div class="form-group"><label>ニックネーム</label><input type="text" id="inNick" placeholder="例: 太郎"></div>
-        <div class="form-group"><label>スプレッドシート連携（ID）</label><input type="text" id="inSheetId" placeholder="例: 1j_yPSiztoIr0c..."></div>
+        <div class="form-group">
+          <label>スプレッドシート連携（ID）</label>
+          <input type="text" id="inSheetId" placeholder="例: 1j_yPSiztoIr0c...">
+          <!-- 🌟 追加: ID取得方法へのリンク -->
+          <div style="text-align: right; margin-top: 6px;">
+            <a href="https://sites.google.com/gse.okayama-c.ed.jp/information/%E3%83%9B%E3%83%BC%E3%83%A0" target="_blank" style="font-size: 0.75rem; color: var(--primary); text-decoration: underline;">IDの取得方法はこちら</a>
+          </div>
+        </div>
         <button onclick="saveMyPage()" class="btn" style="background:var(--accent);">保存する</button>
         <p style="font-size: 0.8rem; color: var(--text-sub); margin-top: 20px; line-height: 1.6;">※ご自身のGoogleドライブのシートIDを入力。<br>※一度保存するとブラウザに記憶されます。</p>
       </div>
