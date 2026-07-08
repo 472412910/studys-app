@@ -113,12 +113,27 @@
       </div>
 
       <div id="view-library" class="main-view">
-        <div id="subjectSection" class="form-group hidden">
-          <label>現在の教科（シート）</label>
-          <div class="subject-flex">
-            <select id="subSelect" onchange="changeSub()"></select>
-            <button onclick="createSub()" class="btn-action" style="background: #1ABC9C;">追加</button>
-            <button onclick="deleteSub()" class="btn-action" style="background: #E74C3C;">削除</button>
+        <div id="subjectSection" class="form-group hidden" style="background: var(--bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+          <label style="font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 6px; margin-bottom: 14px; font-size: 0.95rem;">
+            <span>📚 教材・シートの管理</span>
+          </label>
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 0.78rem; color: var(--text-sub); font-weight: bold; display: flex; align-items: center; gap: 4px;">📁 教材フォルダ (大分類)</span>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <select id="courseSelect" onchange="changeCourse()" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-size: 0.9rem; height: 42px; font-weight: 500; color: var(--text-main); cursor: pointer;"></select>
+                <button onclick="createCourse()" class="btn-action" style="background: #34495E; color: white; padding: 0 12px; height: 42px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap;" title="新しい教材を追加">➕ 追加</button>
+                <button onclick="deleteCourse()" class="btn-action" style="background: #E74C3C; color: white; padding: 0 12px; height: 42px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; opacity: 0.9;" title="選択中の教材を削除">🗑️ 削除</button>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 0.78rem; color: var(--text-sub); font-weight: bold; display: flex; align-items: center; gap: 4px;">📄 学習シート (小分類)</span>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <select id="subSelect" onchange="changeSub()" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-size: 0.9rem; height: 42px; font-weight: 500; color: var(--text-main); cursor: pointer;"></select>
+                <button onclick="createSub()" class="btn-action" style="background: #1ABC9C; color: white; padding: 0 12px; height: 42px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap;" title="教材内にシートを追加">➕ 追加</button>
+                <button onclick="deleteSub()" class="btn-action" style="background: #E74C3C; color: white; padding: 0 12px; height: 42px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; opacity: 0.9;" title="選択中のシートを削除">🗑️ 削除</button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="lib-tabs">
@@ -159,14 +174,14 @@
         <div class="list-card"><h3>本日の学習時間</h3><p id="todayTimeDisp" style="color:#1ABC9C; font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 分</p></div>
         <div class="list-card"><h3>今週の学習時間（直近7日間）</h3><p id="weeklyTimeDisp" style="color:var(--accent); font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 分</p></div>
         <div class="list-card">
-          <h3>教科別学習バランス</h3>
+          <h3>教科・教材別学習バランス</h3>
           <div style="position: relative; margin: 15px auto 0 auto; height: 220px; width: 100%;">
             <canvas id="studyChart"></canvas>
           </div>
         </div>
         <div class="divider" style="margin: 30px 0;"></div>
         <div class="form-group">
-          <label>学習する教科</label>
+          <label>学習する教科・教材</label>
           <select id="timerSubSelect" onchange="changeTimerSub()">
             <option value="国語">国語</option><option value="数学">数学</option><option value="英語">英語</option><option value="社会">社会</option><option value="理科">理科</option><option value="その他">その他</option>
           </select>
@@ -203,8 +218,6 @@
     sheetId: localStorage.getItem('studySyncSheetId') || '', 
     nick: localStorage.getItem('studySyncNickname') || '', 
     subject: 'Cards', subs: [], cards: [], queue: [], curIdx: -1, timer: 0, intv: null, timerSubject: '国語', chartInstance: null,
-    
-    // ★ここで「マスターシートのID」を固定で登録します（あなたが作成した共有用シートのIDに書き換えてください）
     masterSheetId: '1rpP2oDsemJsw8ICJOBTqNkycQR-V2eIQ6fQzbiaYHdQ'
   };
 
@@ -218,7 +231,7 @@
       if(view === 'report') fetchReport(); 
     }
     if(view === 'ranking') fetchRanking(); 
-    if(view === 'home') fetchGlobalAverage(); // ★この行を追加
+    if(view === 'home') fetchGlobalAverage(); 
   }
   function toggleMenu() { switchView($('view-menu').classList.contains('active') ? 'home' : 'menu'); }
   function switchLibTab(tab) {
@@ -244,7 +257,6 @@
           state.token = res.access_token; show('loginSection', false); show('appSection', true);
           $('inSheetId').value = state.sheetId; $('inNick').value = state.nick;
                 
-                // ★追加：今日すでに名前を設定していれば、入力欄をロック（操作不可）にする
                 const todayStr = new Date().toLocaleDateString('ja-JP');
                 if (localStorage.getItem('studySyncNickLastChanged') === todayStr && state.nick) {
                   $('inNick').disabled = true;
@@ -260,51 +272,209 @@
 
   const checkId = () => state.sheetId ? true : (alert('マイページでIDを登録してください'), switchView('mypage'), false);
   
-  async function fetchSubs() {
-    if(!checkId()) return;
-    try {
-      const data = await sheetApi('?fields=sheets.properties(title,sheetId)');
-      state.subs = (data.sheets || []).map(s => s.properties).filter(s => !['Logs', 'ReportSummary'].includes(s.title));
-      $('subSelect').innerHTML = state.subs.map(s => `<option value="${s.title}" ${s.title===state.subject?'selected':''}>${s.title}</option>`).join('');
-      if(!state.subs.find(s => s.title === state.subject) && state.subs.length) $('subSelect').value = state.subject = state.subs[0].title;
-      show('subjectSection', true);
-    } catch { msg('教科読込エラー'); }
-  }
-  async function changeSub() { state.subject = $('subSelect').value; await fetchCards(); if(!$('tab-list').classList.contains('hidden')) renderList(); }
+const SEP = '｜';
+let courseData = {};
+
+async function fetchSubs() {
+  if (!state.sheetId) return;
+  try {
+    const res = await sheetApi('');
+    const sheets = res.sheets.map(s => s.properties.title).filter(t => !['Logs', 'ReportSummary', 'Ranking', 'DailyLog'].includes(t));
+    
+    courseData = {};
+    
+    sheets.forEach(s => {
+      let course = '基本の教材';
+      let sheetName = s;
+      if (s.includes(SEP)) {
+        const parts = s.split(SEP);
+        course = parts[0];
+        sheetName = parts.slice(1).join(SEP);
+      }
+      if (!courseData[course]) courseData[course] = [];
+      courseData[course].push({ display: sheetName, actual: s });
+    });
+
+    const savedCourses = JSON.parse(localStorage.getItem('studySyncCourses') || '[]');
+    savedCourses.forEach(c => { if (!courseData[c]) courseData[c] = []; });
+
+    renderCourseSelect();
+  } catch (e) { msg('データの読み込みに失敗しました'); }
+}
+
+function renderCourseSelect() {
+  const cSel = $('courseSelect');
+  if (!cSel) return;
+  cSel.innerHTML = '';
   
-  async function createSub() {
-    if(!checkId()) return;
-    const name = (prompt('新しい教科名:') || '').trim();
-    if(!name || state.subs.some(s => s.title === name) || ['Logs', 'ReportSummary'].includes(name)) return alert('無効な名前です');
-    msg('作成中...');
-    try {
-      await sheetApi(':batchUpdate', 'POST', { requests: [{ addSheet: { properties: { title: name } } }] });
-      await sheetApi(`/values/${encodeURIComponent(name)}!A1:I1?valueInputOption=USER_ENTERED`, 'PUT', { values: [['id','question','answer','ef','interval','repetitions','nextReview','imageUrl','answerImageUrl']] });
-      state.subject = name; await fetchSubs(); await fetchCards(); msg('追加完了');
-    } catch { alert('追加失敗'); msg('エラー'); }
+  const courses = Object.keys(courseData);
+  
+  if (courses.length === 0) {
+    cSel.innerHTML = '<option value="">(教材がありません)</option>';
+    state.currentCourse = '';
+    show('subjectSection', true);
+    renderSubSelect();
+    return;
+  }
+  
+  courses.forEach(c => cSel.innerHTML += `<option value="${c}">${c}</option>`);
+  
+  if (!state.currentCourse || !courseData[state.currentCourse]) state.currentCourse = courses[0];
+  cSel.value = state.currentCourse;
+  show('subjectSection', true);
+  renderSubSelect();
+}
+
+function renderSubSelect() {
+  const sSel = $('subSelect');
+  const tSel = $('timerSubSelect');
+  if (sSel) sSel.innerHTML = '';
+  if (tSel) tSel.innerHTML = '';
+  
+  if (tSel) {
+// 🌟 1. 基本の五教科グループを追加
+const baseGroup = document.createElement('optgroup');
+    baseGroup.label = "基本の五教科";
+    ['国語', '数学', '英語', '理科', '社会', 'その他'].forEach(sub => {
+      let opt = document.createElement('option');
+      opt.value = sub; opt.innerText = sub;
+      baseGroup.appendChild(opt);
+    });
+    tSel.appendChild(baseGroup);
+
+    // 🌟 2. 自分で追加した教材名（大分類）を追加
+    const customGroup = document.createElement('optgroup');
+    customGroup.label = "追加した教材";
+    Object.keys(courseData).forEach(c => {
+      // デフォルトの「基本の教材」フォルダ以外の教材名をプルダウンに追加
+      if (c && c !== '基本の教材') {
+        let opt = document.createElement('option');
+        // シート名ではなく教材名(c)をvalueに設定して記録させる
+        opt.value = c; 
+        opt.innerText = `📁 ${c}`;
+        customGroup.appendChild(opt);
+      }
+    });
+    if (customGroup.childNodes.length > 0) {
+      tSel.appendChild(customGroup);
+    }
   }
 
-  async function deleteSub() {
-    if(!checkId() || state.subs.length <= 1) return alert('最後の教科は削除できません');
-    if(!confirm(`「${state.subject}」を削除しますか？`)) return;
-    try {
-      await sheetApi(':batchUpdate', 'POST', { requests: [{ deleteSheet: { sheetId: state.subs.find(s => s.title === state.subject).sheetId } }] });
-      await fetchSubs(); await fetchCards(); msg('削除完了');
-    } catch { alert('削除失敗'); }
+  const sheets = state.currentCourse ? (courseData[state.currentCourse] || []) : [];
+  
+  if (sheets.length === 0) {
+    if (sSel) sSel.innerHTML = '<option value="">(シートがありません)</option>';
+    state.subject = ''; state.cards = []; state.queue = [];
+    const qArea = $('qArea');
+    if (qArea) qArea.innerText = 'この教材にはまだシートがありません。「➕ 追加」を押してシートを作成してください。';
+    show('startCardBtn', false); show('showAnsBtn', false);
+    if ($('cardStats')) $('cardStats').innerText = '';
+    return;
   }
+  
+  sheets.forEach(s => { if (sSel) sSel.innerHTML += `<option value="${s.actual}">${s.display}</option>`; });
 
-  async function fetchCards() {
-    if(!checkId()) return; msg('読込中...');
-    try {
-      const data = await sheetApi(`/values/${encodeURIComponent(state.subject)}!A2:I`);
-      state.cards = (data.values || []).map((r, i) => ({ rowIndex: i+2, id: r[0], q: r[1], a: r[2], ef: +r[3]||2.5, intv: +r[4]||0, rep: +r[5]||0, next: +r[6]||0, qImg: r[7]||'', aImg: r[8]||'' }));
-      if(!state.cards.length) { $('qArea').innerText = 'カードがありません。「追加」タブから作成してください。'; ['showAnsBtn', 'qImgBox', 'aArea'].forEach(id => show(id, false)); }
-      else { state.queue = state.cards.map((c, i) => ({...c, org: i})).filter(c => c.next <= Date.now()).sort(()=>Math.random()-0.5).map(c => c.org); showNext(); }
-      msg('同期完了');
-    } catch { msg('データなし/エラー'); }
-  }
+  if (!state.subject || !sheets.find(s => s.actual === state.subject)) state.subject = sheets[0].actual;
+  if (sSel) sSel.value = state.subject;
+  
+  if (typeof fetchCards === 'function') fetchCards();
+}
 
-// ★最適化1：画像読み込みを「Promiseキャッシュ」に進化（重複リクエスト・バグを完全に防止）
+function changeCourse() { state.currentCourse = $('courseSelect').value; renderSubSelect(); }
+function changeSub() { state.subject = $('subSelect').value; if (typeof fetchCards === 'function') fetchCards(); }
+
+async function createCourse() {
+  const cName = prompt('新しい「教材」の名前を入力してください\n(例: ターゲット1900、青チャート など)');
+  if (!cName) return;
+  if (cName.includes(SEP)) return alert(`名前に「${SEP}」を含めることはできません。`);
+  
+  if (!courseData[cName]) {
+    courseData[cName] = [];
+    const savedCourses = JSON.parse(localStorage.getItem('studySyncCourses') || '[]');
+    if (!savedCourses.includes(cName)) {
+      savedCourses.push(cName);
+      localStorage.setItem('studySyncCourses', JSON.stringify(savedCourses));
+    }
+    state.currentCourse = cName;
+    await fetchSubs();
+    msg(`教材「${cName}」を作成しました`);
+  } else { alert('その教材名は既に存在します。'); }
+}
+
+async function deleteCourse() {
+  if (!state.currentCourse) return alert('削除する教材がありません。');
+  const targetCourse = state.currentCourse;
+  const sheetsToRemove = courseData[targetCourse] || [];
+  
+  const confirmMsg = sheetsToRemove.length > 0 
+    ? `⚠️ 本当に教材「${targetCourse}」を丸ごと削除しますか？\n含まれるすべてのシート（${sheetsToRemove.length}個）と学習データがGoogleスプレッドシートから完全に削除されます。`
+    : `空の教材「${targetCourse}」を削除しますか？`;
+    
+  if (!confirm(confirmMsg)) return;
+  
+  msg('教材を削除中...');
+  try {
+    if (sheetsToRemove.length > 0) {
+      const res = await sheetApi('');
+      const requests = [];
+      sheetsToRemove.forEach(s => {
+        const found = res.sheets.find(sh => sh.properties.title === s.actual);
+        if (found) requests.push({ deleteSheet: { sheetId: found.properties.sheetId } });
+      });
+      if (requests.length > 0) {
+        await sheetApi(':batchUpdate', 'POST', { requests });
+      }
+    }
+    
+    let savedCourses = JSON.parse(localStorage.getItem('studySyncCourses') || '[]');
+    savedCourses = savedCourses.filter(c => c !== targetCourse);
+    localStorage.setItem('studySyncCourses', JSON.stringify(savedCourses));
+    
+    msg('教材を削除しました');
+    state.currentCourse = '';
+    state.subject = '';
+    await fetchSubs();
+  } catch (e) { msg('教材の削除に失敗しました'); }
+}
+
+async function createSub() {
+  if (!state.currentCourse) return alert('先に教材フォルダを選択または追加してください。');
+  const sName = prompt(`教材「${state.currentCourse}」の中に作るシート名を入力してください\n(例: 第1章、英文法基礎 など)`);
+  if (!sName) return;
+  if (sName.includes(SEP)) return alert(`名前に「${SEP}」を含めることはできません。`);
+  
+  const actualName = state.currentCourse === '基本の教材' ? sName : `${state.currentCourse}${SEP}${sName}`;
+  msg('シートを作成中...');
+  try {
+    await sheetApi(':batchUpdate', 'POST', { requests: [{ addSheet: { properties: { title: actualName } } }] });
+    await sheetApi(`/values/${encodeURIComponent(actualName)}!A1:I1?valueInputOption=USER_ENTERED`, 'PUT', { values: [['ID', 'Question', 'Answer', 'EF', 'Interval', 'Repetitions', 'NextReview', 'Q_Image', 'A_Image']] });
+    
+    msg('シートを作成しました！');
+    state.subject = actualName;
+    await fetchSubs();
+  } catch (e) { msg('シート作成に失敗しました（同名シートの重複など）'); }
+}
+
+async function deleteSub() {
+  if (!state.subject) return alert('削除するシートが選択されていません。');
+  const dispName = state.subject.split(SEP).pop();
+  
+  if (!confirm(`本当にシート「${dispName}」を削除しますか？\nこのシート内のすべての学習履歴カードが消去されます。`)) return;
+  
+  msg('シートを削除中...');
+  try {
+    const res = await sheetApi('');
+    const sheetInfo = res.sheets.find(s => s.properties.title === state.subject);
+    if (!sheetInfo) throw new Error('Not found');
+    
+    await sheetApi(':batchUpdate', 'POST', { requests: [{ deleteSheet: { sheetId: sheetInfo.properties.sheetId } }] });
+    
+    msg('シートを削除しました');
+    state.subject = '';
+    await fetchSubs();
+  } catch (e) { msg('シートの削除に失敗しました'); }
+}
+
 const imgCache = {};
 
 async function loadDriveImg(id, imgId, boxId) {
@@ -312,7 +482,6 @@ async function loadDriveImg(id, imgId, boxId) {
   const img = $(imgId);
   
   try {
-    // まだキャッシュに存在しない場合のみ通信を開始し、その「約束（Promise）」を保存
     if (!imgCache[id]) {
       imgCache[id] = fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { 
         headers: { Authorization: `Bearer ${state.token}` } 
@@ -324,16 +493,72 @@ async function loadDriveImg(id, imgId, boxId) {
       .then(blob => URL.createObjectURL(blob));
     }
     
-    // 取得完了まで待機（既に取得済みの場合はゼロ秒で瞬時に通過）
     const url = await imgCache[id];
     img.src = url;
     show(boxId, true);
   } catch (e) { 
     img.src = ''; 
     show(boxId, false); 
-    delete imgCache[id]; // エラー時はキャッシュから削除して次回やり直せるようにする
+    delete imgCache[id]; 
   }
 }
+
+  // ★追加：スプレッドシートから問題を読み込む処理
+  async function fetchCards() {
+    if(!state.subject || !checkId()) return;
+    msg('カードを読み込み中...');
+    try {
+      const res = await sheetApi(`/values/${encodeURIComponent(state.subject)}!A2:I`);
+      const rows = res.values || [];
+      state.cards = rows.map((r, i) => ({
+        rowIndex: i + 2, // シート上の行番号
+        id: r[0],
+        q: r[1] || '',
+        a: r[2] || '',
+        ef: parseFloat(r[3]) || 2.5,
+        intv: parseFloat(r[4]) || 0,
+        rep: parseInt(r[5]) || 0,
+        next: parseFloat(r[6]) || 0,
+        qImg: r[7] || '',
+        aImg: r[8] || ''
+      }));
+
+      const now = Date.now();
+      state.queue = [];
+      // 復習期日が来ている、または未学習のカードを抽出
+      state.cards.forEach((c, i) => {
+        if (!c.next || c.next <= now) {
+          state.queue.push(i);
+        }
+      });
+
+      // シャッフル
+      state.queue.sort(() => Math.random() - 0.5);
+
+      if ($('cardStats')) $('cardStats').innerText = `残り: ${state.queue.length}枚`;
+      
+      if (state.queue.length > 0) {
+        showNext();
+      } else {
+        const qArea = $('qArea');
+        if (qArea) qArea.innerText = '完了！お疲れ様です✨';
+        show('showAnsBtn', false);
+        show('qImgBox', false);
+        show('aArea', false);
+        show('evalBox', false);
+      }
+      msg('同期完了');
+      
+      // リストタブが開かれていたら更新
+      if(document.getElementById('tab-list') && !document.getElementById('tab-list').classList.contains('hidden')) {
+        renderList();
+      }
+    } catch (e) {
+      msg('データの読み込みに失敗しました');
+      console.error(e);
+    }
+  }
+
 
   function showNext() {
     show('aArea', false); show('evalBox', false);
@@ -346,7 +571,7 @@ async function loadDriveImg(id, imgId, boxId) {
     loadDriveImg(c.aImg, 'aImg', 'aImgBox');
   }
 
-  let cardStartTime = 0; // ★問題を表示（解き始め）した時間を記録する変数
+  let cardStartTime = 0; 
   let simpleModeTimeout = null;
 
   function showAns() { 
@@ -356,26 +581,21 @@ async function loadDriveImg(id, imgId, boxId) {
     const btns = $('evalBox').querySelectorAll('button');
     if (!btns || btns.length < 4) return;
 
-    // 一旦全ボタンを通常状態にリセット
     btns.forEach(b => { b.style.display = 'inline-block'; b.style.opacity = '1'; b.disabled = false; });
     clearTimeout(simpleModeTimeout);
 
     if (sets.mode === 'simple') {
-      // 単純暗記モード (2択に限定)
-      btns[1].style.display = 'none'; // 難しい を非表示
-      btns[2].style.display = 'none'; // 普通 を非表示
+      btns[1].style.display = 'none'; 
+      btns[2].style.display = 'none'; 
       btns[3].innerText = '覚えた(4)';
       
-      // ★「問題を解く」ボタンを押してからの経過時間を計算
       const elapsed = Date.now() - cardStartTime;
-      const limit = 5000; // 5秒制限
+      const limit = 5000; 
       
       if (elapsed >= limit) {
-        // 解答を開いた時点で、すでに問題表示から5秒以上経っている場合は即グレーアウト
         btns[3].style.opacity = '0.2';
         btns[3].disabled = true;
       } else {
-        // まだ5秒経っていない場合は、残りの猶予時間が経過した時点でグレーアウト
         simpleModeTimeout = setTimeout(() => {
           btns[3].style.opacity = '0.2';
           btns[3].disabled = true; 
@@ -386,75 +606,21 @@ async function loadDriveImg(id, imgId, boxId) {
     }
   }
 
-  async function evalCard(quality) { 
-    let c = state.cards[state.curIdx]; 
-    const sets = JSON.parse(localStorage.getItem('studySettings') || '{}')[state.subject] || { mode: 'normal', time: 180 };
 
-    // ★思考・論理モードのタイムオーバーペナルティ（問題表示からの総経過時間で判定）
-    if (sets.mode === 'logical' && quality >= 3) {
-      const elapsedSec = (Date.now() - cardStartTime) / 1000;
-      if (elapsedSec > sets.time) {
-        quality = 2; // 目標時間を超えたら強制的に「難しい(2)」へダウングレード
-        alert(`【タイムオーバー】\n目標時間（${sets.time}秒）を超過したため、引き出すスピードを鍛えるべく評価を「難しい(2)」にダウングレードしました。`);
-      }
-    }
-
-    // --- 既存の忘却曲線・サボり補正計算 ---
-    const lastReview = c.next ? (c.next - (c.intv * 86400000)) : Date.now();
-    const actualIntv = c.intv === 0 ? 1 : Math.max(1, (Date.now() - lastReview) / 86400000);
-    let bonusTriggered = false;
-
-    if (quality >= 3) { 
-      let baseIntv = c.intv;
-      if (actualIntv > c.intv + 0.5 && c.rep > 0) { 
-        baseIntv = actualIntv; bonusTriggered = true; 
-      }
-      if (c.rep === 0) { c.intv = quality === 4 ? 4 : 1; 
-      } else if (c.rep === 1) { c.intv = quality === 4 ? 6 : 6; 
-      } else {
-        const bonusFactor = quality === 4 ? 1.3 : 1.0; 
-        c.intv = Math.max(c.intv + 1, Math.round(baseIntv * c.ef * bonusFactor)); 
-      }
-      c.rep++; 
-      if (quality === 3) c.ef = Math.max(1.3, c.ef + 0.0);
-      if (quality === 4) c.ef = Math.max(1.3, c.ef + 0.15);
-    } else if (quality === 2) {
-      c.intv = Math.max(1, Math.round(c.intv * 1.2)); c.ef = Math.max(1.3, c.ef - 0.15); c.rep++; 
-    } else {
-      c.rep = 0; c.intv = 1; c.ef = Math.max(1.3, c.ef - 0.2); 
-    } 
-    
-    c.next = Date.now() + c.intv * 86400000; 
-
-    state.queue.shift(); 
-    if (quality === 1) state.queue.push(state.curIdx); 
-    
-    showNext(); 
-    if (bonusTriggered) showBonusEffect();
-
-    sheetApi(`/values/${encodeURIComponent(state.subject)}!A${c.rowIndex}:I${c.rowIndex}?valueInputOption=USER_ENTERED`, 'PUT', { values: [[c.id, c.q, c.a, c.ef, c.intv, c.rep, c.next, c.qImg, c.aImg]] })
-      .catch(() => msg('※保存が遅延しています')); 
-  }
-
-// ★修正：4段階評価と忘却ボーナス（遅延補正）のロジックを実装
 async function evalCard(quality) { 
     msg('記録中...'); 
     let c = state.cards[state.curIdx]; 
     
-    // 前回の学習日を逆算して「実際の経過日数」を割り出す
     const lastReview = c.next ? (c.next - (c.intv * 86400000)) : Date.now();
     const actualIntv = c.intv === 0 ? 1 : Math.max(1, (Date.now() - lastReview) / 86400000);
     let bonusTriggered = false;
 
-    // 評価に基づく間隔（インターバル）と難易度（EF）の計算
     if (quality >= 3) { 
-      // 3(Good) または 4(Easy) の場合
       let baseIntv = c.intv;
       
-      // ★サボり補正：実際の経過日数が予定を上回っていた場合、そちらをベースに計算
       if (actualIntv > c.intv + 0.5 && c.rep > 0) { 
         baseIntv = actualIntv;
-        bonusTriggered = true; // 忘却ボーナス発動条件クリア！
+        bonusTriggered = true; 
       }
       
       if (c.rep === 0) {
@@ -462,7 +628,7 @@ async function evalCard(quality) {
       } else if (c.rep === 1) {
         c.intv = quality === 4 ? 6 : 6; 
       } else {
-        const bonusFactor = quality === 4 ? 1.3 : 1.0; // 簡単(4)ならさらにボーナス
+        const bonusFactor = quality === 4 ? 1.3 : 1.0; 
         c.intv = Math.max(c.intv + 1, Math.round(baseIntv * c.ef * bonusFactor)); 
       }
       c.rep++; 
@@ -471,12 +637,10 @@ async function evalCard(quality) {
       if (quality === 4) c.ef = Math.max(1.3, c.ef + 0.15);
       
     } else if (quality === 2) {
-      // 2(Hard): 苦労して思い出した
       c.intv = Math.max(1, Math.round(c.intv * 1.2));
       c.ef = Math.max(1.3, c.ef - 0.15);
       c.rep++; 
     } else {
-      // 1(Again): 思い出せなかった
       c.rep = 0; 
       c.intv = 1; 
       c.ef = Math.max(1.3, c.ef - 0.2); 
@@ -488,12 +652,12 @@ async function evalCard(quality) {
       await sheetApi(`/values/${encodeURIComponent(state.subject)}!A${c.rowIndex}:I${c.rowIndex}?valueInputOption=USER_ENTERED`, 'PUT', { values: [[c.id, c.q, c.a, c.ef, c.intv, c.rep, c.next, c.qImg, c.aImg]] }); 
       
       state.queue.shift(); 
-      if (quality === 1) state.queue.push(state.curIdx); // 1の場合はキューの後ろにもう一度追加して再出題
+      if (quality === 1) state.queue.push(state.curIdx); 
       
       showNext(); 
       msg('同期完了'); 
       
-      if (bonusTriggered) showBonusEffect(); // ★忘却ボーナス演出の呼び出し
+      if (bonusTriggered) showBonusEffect(); 
     } catch { msg('同期失敗'); } 
   }
 
@@ -540,11 +704,9 @@ async function evalCard(quality) {
     } catch { msg('削除失敗'); }
   }
 
-// ★修正：通信量を激減させ、1秒で保存できるように超高速化
 async function saveStudyLog(currentSub, minutes) {
     if(!checkId() || !minutes) return;
     try {
-      // 1. Logs（履歴）の全読み込みをやめ、必要なSummaryとRankingだけを同時に取得
       const [resSummary, resRank] = await Promise.all([
         sheetApi('/values/ReportSummary!A2:B').catch(()=>({})),
         (state.masterSheetId && state.masterSheetId !== 'YOUR_MASTER_SHEET_ID_HERE') 
@@ -552,20 +714,15 @@ async function saveStudyLog(currentSub, minutes) {
           : Promise.resolve({values: []})
       ]);
 
-      // Summary（教科ごとの合計）の計算
       let summaryData = resSummary.values || [], found = false;
       summaryData = summaryData.map(r => r[0] === currentSub ? (found = true, [r[0], (parseFloat(r[1]) + minutes).toFixed(1)]) : r);
       if (!found && currentSub) summaryData.push([currentSub, minutes.toFixed(1)]);
       
       const updates = [
-        // ★高速化1：ReportSummaryは「消して書き直す(clear)」のをやめ、直接上書き
         sheetApi('/values/ReportSummary!A2:B?valueInputOption=USER_ENTERED', 'PUT', { values: summaryData }),
-        
-        // ★高速化2：Logsシートは読み込まずに、一番下に1行「追記(append)」するだけにする
         sheetApi('/values/Logs!A1:C:append?valueInputOption=USER_ENTERED', 'POST', { values: [[new Date().toLocaleString(), currentSub, minutes]] })
       ];
 
-      // Ranking（みんなのランキング）の計算
       if (state.masterSheetId && state.masterSheetId !== 'YOUR_MASTER_SHEET_ID_HERE') {
         const todayStr = new Date().toLocaleDateString('ja-JP');
         let rankData = resRank.values || [];
@@ -580,25 +737,20 @@ async function saveStudyLog(currentSub, minutes) {
         });
         if (!rankFound) rankData.push([todayStr, state.nick, minutes.toFixed(1)]);
         
-        // ★高速化3：Rankingも「消して書き直す」のをやめ、直接上書き
         updates.push(sheetApi('/values/Ranking!A2:C?valueInputOption=USER_ENTERED', 'PUT', { values: rankData }, state.masterSheetId));
       }
       
-      // 2. 準備したデータを「すべて同時」に書き込む（待ち時間が1/3になります）
       await Promise.all(updates);
       
     } catch(e) { throw e; }
   }
-// ===== ここからタイマー関連の処理を書き換え =====
 
 $('startTimer').onclick = () => {
     show('startTimer', false); show('stopTimer', true); state.timerSubject = $('timerSubSelect').value;
     
-    // ★追加：開始した瞬間の「正確な時刻（ミリ秒）」を記憶しておく
     state.startTime = Date.now(); 
     
     state.intv = setInterval(() => { 
-      // ★変更：単に+1するのではなく、「現在時刻」と「開始時刻」の差を計算して経過秒数を出す
       state.timer = Math.floor((Date.now() - state.startTime) / 1000);
       $('timerDisp').innerText = [Math.floor(state.timer/3600), Math.floor((state.timer%3600)/60), state.timer%60].map(v => String(v).padStart(2,'0')).join(':'); 
     }, 1000);
@@ -607,14 +759,12 @@ $('startTimer').onclick = () => {
   $('stopTimer').onclick = async () => {
     if(!checkId()) return; clearInterval(state.intv); state.intv = null; msg('記録保存中...');
     
-    // ★追加：念のため、ストップを押した瞬間にもう一度正確な経過時間を計算する
     if (state.startTime) {
       state.timer = Math.floor((Date.now() - state.startTime) / 1000);
     }
     
     try {
       await saveStudyLog(state.timerSubject || $('timerSubSelect').value || '国語', parseFloat((state.timer / 60).toFixed(1)));
-      // ★追加：startTimeも空っぽに戻しておく
       state.timer = 0; state.startTime = null; $('timerDisp').innerText = '00:00:00'; show('startTimer', true); show('stopTimer', false); msg('保存完了'); await fetchReport();
     } catch { msg('保存失敗'); }
   };
@@ -622,21 +772,17 @@ $('startTimer').onclick = () => {
   async function changeTimerSub() {
     const newSub = $('timerSubSelect').value;
     if(state.intv && state.timer > 0) {
-      // ★追加：途中で教科を変えた時も、その時点での正確な経過時間を計算して保存
       state.timer = Math.floor((Date.now() - state.startTime) / 1000);
       
       msg('これまでの教科の記録を保存中...');
       try { await saveStudyLog(state.timerSubject || '国語', parseFloat((state.timer / 60).toFixed(1))); msg('前教科の記録を保存しました'); await fetchReport(); } catch { msg('一部保存失敗'); }
       
       state.timer = 0; 
-      // ★追加：次の教科がここからスタートするため、開始時刻を「今」にリセットする
       state.startTime = Date.now(); 
       $('timerDisp').innerText = '00:00:00';
     }
     state.timerSubject = newSub;
   }
-
-  // ===== ここまで =====
 
   async function fetchReport() {
     if(!checkId()) return; msg('レポート読込中...');
@@ -655,7 +801,8 @@ $('startTimer').onclick = () => {
       if(state.chartInstance) state.chartInstance.destroy();
       if(!labels.length) { $('totalTimeDisp').innerText = $('todayTimeDisp').innerText = $('weeklyTimeDisp').innerText = '0 分'; return msg('学習データがまだありません'); }
       state.chartInstance = new Chart($('studyChart'), {
-        type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: ['#4A90E2', '#1ABC9C', '#F5A623', '#E74C3C', '#9B59B6', '#34495E', '#7F8C8D'], borderWidth: 2, borderColor: '#ffffff' }] },
+        // 🎨 追加した教材分も綺麗に表示されるよう、カラーパレットの色を大幅に追加しました
+        type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: ['#4A90E2', '#1ABC9C', '#F5A623', '#E74C3C', '#9B59B6', '#34495E', '#7F8C8D', '#FF69B4', '#20B2AA', '#FFD700', '#8A2BE2', '#3CB371', '#FF8C00', '#4682B4'], borderWidth: 2, borderColor: '#ffffff' }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, family: 'Yu Gothic' }, padding: 15 } }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} 分` } } }, cutout: '65%' }
       }); msg('同期完了');
     } catch { msg('レポート読込失敗'); }
@@ -711,22 +858,18 @@ $('startTimer').onclick = () => {
     if(!id) return alert('IDを入力してください');
     if(!nick) return alert('ランキング参加のためニックネームを入力してください'); 
 
-    // ★追加：ニックネームの変更を1日1回に制限
     const todayStr = new Date().toLocaleDateString('ja-JP');
     const lastChanged = localStorage.getItem('studySyncNickLastChanged');
     
-    // 既に名前があり、新しい名前に変えようとした際、今日すでに変更済みならブロック
     if (state.nick && state.nick !== nick && lastChanged === todayStr) {
       return alert('ニックネームの変更は1日1回までです。明日以降に変更してください。');
     }
     
-    // 名前が新しく設定・変更された場合は、変更日（今日）を記憶し、入力欄をロック
     if (state.nick !== nick) {
       localStorage.setItem('studySyncNickLastChanged', todayStr);
-      $('inNick').disabled = true; // ★追加：保存と同時にロックする
+      $('inNick').disabled = true; 
     }
 
-    // 保存処理
     localStorage.setItem('studySyncSheetId', state.sheetId = id); 
     localStorage.setItem('studySyncNickname', state.nick = nick);
     alert('保存しました！'); 
@@ -736,7 +879,6 @@ $('startTimer').onclick = () => {
     switchLibTab('anki');
   }
 
-// ★追加：全ユーザーの「今日」の平均学習時間を計算
 async function fetchGlobalAverage() {
     if(!state.masterSheetId || state.masterSheetId === 'YOUR_MASTER_SHEET_ID_HERE') {
       $('globalAvgTimeDisp').innerText = '未設定';
@@ -753,12 +895,9 @@ async function fetchGlobalAverage() {
       let totalMinutes = 0;
       let validRecords = 0;
       
-      // ★追加：今日の日付を取得（形式: YYYY/MM/DD など環境に依存しますが、記録時と同じ ja-JP を使います）
       const todayStr = new Date().toLocaleDateString('ja-JP');
       
-      // ★修正：今日のデータだけを対象に足し合わせて割る
       rows.forEach(row => {
-        // row[0]には日付が入っているので、今日の日付と一致するか確認
         if (row[0] === todayStr) {
           const time = parseFloat(row[2]);
           if(!isNaN(time)) {
@@ -776,29 +915,26 @@ async function fetchGlobalAverage() {
       console.error(e);
     }
   }
-// ★追加：忘却ボーナス（サボりを達成感に変えるポップアップエフェクト）
+
 function showBonusEffect() {
     const el = document.createElement('div');
     el.innerText = '✨ 記憶力がアルゴリズムの予測を超えました！ ✨';
     el.style.cssText = 'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);background:var(--accent);color:#fff;padding:15px 25px;border-radius:10px;font-weight:bold;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;transition:all 0.5s ease;opacity:0;';
     document.body.appendChild(el);
     
-    // ふわっと表示して少し下に下がるアニメーション
     requestAnimationFrame(() => { 
       el.style.opacity = '1'; 
       el.style.top = '50%'; 
     });
     
-    // 3秒後にスッと消える
     setTimeout(() => {
       el.style.opacity = '0'; 
       el.style.top = '40%';
       setTimeout(() => el.remove(), 500);
     }, 3000);
   } 
-// ★追加：高度な学習モード設定 ＆ チャンク分割UI の自動構築
+
 function initAdvancedModes() {
-    // ヘッダーの右上に設定ボタン（歯車）を追加
     const headerTitle = $('headerTitle');
     if (headerTitle && !$('modeSettingBtn')) {
       const btn = document.createElement('button');
@@ -810,7 +946,6 @@ function initAdvancedModes() {
       headerTitle.parentElement.appendChild(btn);
     }
 
-    // 設定・チャンク分割用のポップアップ画面（モーダル）を追加
     const modalHTML = `
       <div id="advSettingsModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; display:flex; justify-content:center; align-items:center;">
         <div style="background:var(--surface); padding:20px; border-radius:10px; width:90%; max-width:400px; max-height:90vh; overflow-y:auto; box-shadow:var(--shadow);">
@@ -865,7 +1000,6 @@ function initAdvancedModes() {
     closeSubjectSettings();
   }
 
-  // チャンク分割カードを一気に生成してスプレッドシートへ送信
   async function generateChunkCards() {
     if(!state.subject) return alert('先にライブラリで科目を設定・選択してください');
     const base = $('chunkBaseQ').value.trim();
@@ -877,7 +1011,6 @@ function initAdvancedModes() {
     const now = Date.now();
     const genId = () => Math.random().toString(36).substr(2, 9);
     
-    // スプレッドシートの形式に合わせて配列を作る
     if(a1) newCards.push([genId(), `${base}\n\n【定理・公式】`, a1, 2.5, 0, 0, now, '', '']);
     if(a2) newCards.push([genId(), `${base}\n\n【第一手】`, a2, 2.5, 0, 0, now, '', '']);
     if(a3) newCards.push([genId(), `${base}\n\n【引っ掛け・注意】`, a3, 2.5, 0, 0, now, '', '']);
@@ -891,32 +1024,27 @@ function initAdvancedModes() {
     } catch { msg('登録失敗'); }
   }
 
-  // ライブラリ画面（学習画面）の時だけ右上に歯車ボタンを表示する
   const _origSwitchView = switchView;
   switchView = (v) => {
     _origSwitchView(v);
     if($('modeSettingBtn')) $('modeSettingBtn').style.display = (v === 'library' && state.subject) ? 'block' : 'none';
   };
 
-  // 起動時にUIを構築
   setTimeout(initAdvancedModes, 1500);
 
   
-  let isContinuousSolving = false; // ★追加：連続学習中かどうかのフラグ
+  let isContinuousSolving = false; 
 
-// ★追加：「問題を解く」ボタンのインターセプトラップ
 if (typeof showNext === 'function') {
   const _origShowNext = showNext;
   showNext = function() {
-    _origShowNext(); // 先に元の処理を実行してカードデータを画面にセットさせる
+    _origShowNext(); 
     
-    // すべての問題を解き終わって完了画面になったら、連続モードをリセットして終了
     if (!state.queue || !state.queue.length) {
       isContinuousSolving = false;
       return;
     }
     
-    // 「問題を解く」ボタンがまだなければ動的に作成して配置
     let startBtn = $('startCardBtn');
     if (!startBtn) {
       startBtn = document.createElement('button');
@@ -932,7 +1060,6 @@ if (typeof showNext === 'function') {
     }
     
     if (!isContinuousSolving) {
-      // ★最初の1問目：問題文を隠して「問題を解く」ボタンを表示する
       const qArea = $('qArea');
       if (qArea) {
         qArea.removeAttribute('data-orig-html'); 
@@ -948,16 +1075,13 @@ if (typeof showNext === 'function') {
       if (simpleModeTimeout) clearTimeout(simpleModeTimeout);
       
     } else {
-      // ★2問目以降（連続解答中）：ボタンを出さず、スムーズに問題を表示して自動計測スタート
       show('startCardBtn', false);
       show('showAnsBtn', true);
       show('aArea', false);
       show('evalBox', false);
       
-      // タイマーをこの瞬間から自動スタート
       cardStartTime = Date.now();
       
-      // 単純暗記モードの場合は、裏側で5秒タイマーを自動起動
       const sets = JSON.parse(localStorage.getItem('studySettings') || '{}')[state.subject] || { mode: 'normal', time: 180 };
       if (simpleModeTimeout) clearTimeout(simpleModeTimeout);
       if (sets.mode === 'simple') {
@@ -965,7 +1089,7 @@ if (typeof showNext === 'function') {
           const btns = $('evalBox').querySelectorAll('button');
           if (btns && btns.length >= 4) {
             btns[3].style.opacity = '0.2';
-            btns[3].disabled = true; // 5秒経過でグレーアウト
+            btns[3].disabled = true; 
           }
         }, 5000);
       }
@@ -973,9 +1097,8 @@ if (typeof showNext === 'function') {
   };
 }
 
-// 「問題を解く」ボタンが押された時のアクション（1問目のみ実行される）
 function startSolving() {
-  isContinuousSolving = true; // ★ここから連続学習モードをONにする
+  isContinuousSolving = true; 
   
   const qArea = $('qArea');
   if (qArea && qArea.hasAttribute('data-orig-html')) {
@@ -1000,18 +1123,15 @@ function startSolving() {
   }
 }
 
-// ★追加：別の科目を開き直した時は、連続学習モードを自動リセットする
 if (typeof fetchCards === 'function') {
   const _origFetchCards = fetchCards;
   fetchCards = async function() {
-    isContinuousSolving = false; // 別のシートを読み込んだらリセット
+    isContinuousSolving = false; 
     await _origFetchCards();
   };
 }
 
-// ★最適化2：ユーザーが考えている間に「次の問題」を裏側でダウンロード（先読みプリロード）
 function preloadNextImages() {
-    // 次の問題（キューの2番目）が存在するかチェック
     if (!state.queue || state.queue.length < 2) return;
     
     const nextIdx = state.queue[1];
@@ -1019,7 +1139,6 @@ function preloadNextImages() {
     
     if (!nextCard) return;
 
-    // 問題画像の先読み
     if (nextCard.qImg && !imgCache[nextCard.qImg]) {
       imgCache[nextCard.qImg] = fetch(`https://www.googleapis.com/drive/v3/files/${nextCard.qImg}?alt=media`, { 
         headers: { Authorization: `Bearer ${state.token}` } 
@@ -1029,7 +1148,6 @@ function preloadNextImages() {
       .catch(() => { delete imgCache[nextCard.qImg]; return null; });
     }
     
-    // 解答画像の先読み
     if (nextCard.aImg && !imgCache[nextCard.aImg]) {
       imgCache[nextCard.aImg] = fetch(`https://www.googleapis.com/drive/v3/files/${nextCard.aImg}?alt=media`, { 
         headers: { Authorization: `Bearer ${state.token}` } 
@@ -1040,27 +1158,19 @@ function preloadNextImages() {
     }
   }
 
-  // 既存の機能（問題を切り替える処理）に、先読み処理を安全に合流させる
   if (typeof showNext === 'function') {
     const _baseShowNextForPreload = showNext;
     showNext = function() {
-      _baseShowNextForPreload(); // 元々のカード表示・連続学習のUI切り替えをそのまま実行
+      _baseShowNextForPreload(); 
       
-      // 画面の更新が落ち着いた後（100ミリ秒後）、裏側でこっそり次の画像を先読みする
       setTimeout(preloadNextImages, 100); 
     };
   }
 
-// ==========================================
-// ★追加・最適化：知識の木（脳内マップ）視覚化機能
-// ==========================================
 (function() {
-  // 1. ホーム画面の一番下に専用の描画エリア（Canvas）を安全に自動生成
   function injectTreeContainer() {
-    // 既に存在していればスキップ
     if ($('knowledgeTreeSection')) return;
 
-    // 既存の「home」ビューの要素を取得（一般的なID名。環境に合わせて自動フォールバック）
     const homeView = $('home') || $('view-home') || document.querySelector('.app-container');
     if (!homeView) return;
 
@@ -1078,60 +1188,52 @@ function preloadNextImages() {
       </div>
     `;
     
-    // ホーム画面（またはアプリコンテナ）の最下部に追加
     homeView.appendChild(container);
   }
 
-  // 2. メインスレッドを絶対に固めない、超軽量・高速な「知識の木」描画ロジック
   function updateKnowledgeTree() {
-    injectTreeContainer(); // コンテナがない場合は生成
+    injectTreeContainer(); 
     
     const canvas = $('treeCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const statusText = $('treeStatusText');
     
-    // データがまだ無い場合の安全処理
     if (!state.cards || state.cards.length === 0) {
       statusText.innerText = "カードを学習すると、ここに知識の木が育ちます！";
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
 
-    // --- 【状態計算】既存のカードデータから「成長度」と「枯渇度」を瞬時に算出 ---
     let totalInterval = 0;
     let deadCardsCount = 0;
     const now = Date.now();
-    const threeDaysMs = 3 * 24 * 60 * 60 * 1000; // 3日分のミリ秒
+    const threeDaysMs = 3 * 24 * 60 * 60 * 1000; 
 
     state.cards.forEach(card => {
-      // card[3]=EF, card[4]=Rep, card[5]=Interval, card[6]=DueDate と仮定した既存設計に準拠
-      const interval = parseFloat(card[5]) || 0;
-      const dueDate = parseFloat(card[6]) || 0;
+      const interval = parseFloat(card.intv) || 0;
+      const dueDate = parseFloat(card.next) || 0;
 
       totalInterval += interval;
       
-      // 復習期日（DueDate）を3日以上過ぎているカードをカウント
       if (dueDate > 0 && (now - dueDate) > threeDaysMs) {
         deadCardsCount++;
       }
     });
 
     const totalCards = state.cards.length;
-    const avgIntv = totalInterval / totalCards;         // 平均復習間隔（成長の指標）
-    const deadRatio = deadCardsCount / totalCards;       // サボり度（枯渇の指標）
+    const avgIntv = totalInterval / totalCards;         
+    const deadRatio = deadCardsCount / totalCards;       
 
-    // --- 【ビジュアル分岐】計算結果をビジュアルとテキストに反映 ---
-    // 深度（枝分かれの多さ）を制限してプチフリーズを100%防止（最大深度7に最適化）
     const depth = Math.min(7, 4 + Math.floor(avgIntv / 5)); 
     
-    let leafColor = '#2ECC71'; // 元気な緑
+    let leafColor = '#2ECC71'; 
     if (deadRatio > 0.1) {
-      leafColor = '#F1C40F'; // 10%以上のカードが3日以上遅れると「黄色」
+      leafColor = '#F1C40F'; 
       statusText.innerText = "⚠️ 復習期日を過ぎたカードがあり、少し元気がありません。";
       statusText.style.color = "#F39C12";
     } else if (deadRatio > 0.3) {
-      leafColor = '#D35400'; // 30%以上のカードが3日以上遅れると「枯れ葉（茶色）」
+      leafColor = '#D35400'; 
       statusText.innerText = "🚨 復習が溜まっています！葉が枯れ始めています。";
       statusText.style.color = "#E74C3C";
     } else {
@@ -1139,7 +1241,6 @@ function preloadNextImages() {
       statusText.style.color = "#27AE60";
     }
 
-    // --- 【超高速フラクタルツリー描画】 ---
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     function drawBranch(x, y, len, angle, d) {
@@ -1150,12 +1251,10 @@ function preloadNextImages() {
       ctx.moveTo(0, 0);
       ctx.lineTo(0, -len);
       
-      // 幹から枝にかけて細くする
       ctx.lineWidth = d * 1.2;
-      ctx.strokeStyle = `rgba(139, 94, 60, ${0.4 + (d / depth) * 0.6})`; // 木の幹の色
+      ctx.strokeStyle = `rgba(139, 94, 60, ${0.4 + (d / depth) * 0.6})`; 
       ctx.stroke();
 
-      // 枝の先端（最後の2階層）に葉っぱを描画
       if (d <= 2) {
         ctx.beginPath();
         ctx.arc(0, -len, 5 + (3 - d) * 2, 0, 2 * Math.PI);
@@ -1163,34 +1262,27 @@ function preloadNextImages() {
         ctx.fill();
       }
 
-      // 再帰を抜ける条件
       if (d === 0) {
         ctx.restore();
         return;
       }
 
-      // 計算負荷を下げるため、枝の分岐角度と縮小率を固定（ササッと動くための最適化）
       drawBranch(0, -len, len * 0.78, 22, d - 1);
       drawBranch(0, -len, len * 0.78, -22, d - 1);
       
       ctx.restore();
     }
 
-    // 木の根元の位置を設定して描画開始（初速の長さは平均間隔に応じて成長）
     const initialLength = Math.min(70, 40 + avgIntv * 1.5);
     drawBranch(canvas.width / 2, canvas.height - 15, initialLength, 0, depth);
   }
 
-  // 3. 既存の画面切り替え機能（switchView）を安全にハックし、ホームに戻った時に一瞬で描画
   if (typeof switchView === 'function') {
     const originalSwitchViewForTree = switchView;
     switchView = function(viewId) {
-      // 既存の画面切り替え処理をそのまま実行（一切邪魔をしない）
       originalSwitchViewForTree(viewId);
       
-      // ホーム画面（またはライブラリ等、ホームに準ずる画面）が表示されたら、非同期で木を更新
       if (viewId === 'home' || viewId === 'library') {
-        // setTimeoutを挟むことで、画面遷移のアニメーションが固まるのを完全に防ぎます
         setTimeout(updateKnowledgeTree, 50);
       }
     };
