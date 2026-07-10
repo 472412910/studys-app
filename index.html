@@ -104,14 +104,16 @@
       </div>
 
       <div id="view-home" class="main-view active">
-        <h2 class="section-title">本日の学習項目</h2>
+        <h2 class="section-title">本日のタスク</h2>
         <div class="list-card" style="margin-bottom: 15px; text-align: center;">
           <h3 style="font-size:0.9rem; color:var(--text-sub);">みんなの1日あたりの平均学習時間</h3>
           <p id="globalAvgTimeDisp" style="color:var(--accent); font-weight:bold; font-size:1.5rem; margin-top:5px;">計算中...</p>
         </div>
-        <div class="list-card"><div class="list-item">英語：６０分</div><div class="list-item">数学：６０分</div><div class="list-item">国語：６０分</div></div>
+        <!-- タスク表示用コンテナ -->
+        <div class="list-card" id="todayTasksArea">
+          <p style="text-align:center; color:#888;">復習タスクを確認中...</p>
+        </div>
       </div>
-
       <div id="view-library" class="main-view">
         <div id="subjectSection" class="form-group hidden" style="background: var(--bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: var(--shadow-sm);">
           <label style="font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 6px; margin-bottom: 14px; font-size: 0.95rem;">
@@ -238,7 +240,7 @@
       if(view === 'report') fetchReport(); 
     }
     if(view === 'ranking') fetchRanking(); 
-    if(view === 'home') fetchGlobalAverage(); 
+    if(view === 'home') { fetchGlobalAverage(); loadTodayTasks(); }
   }
   function toggleMenu() { switchView($('view-menu').classList.contains('active') ? 'home' : 'menu'); }
   function switchLibTab(tab) {
@@ -269,7 +271,7 @@
                   $('inNick').disabled = true;
                 }
 
-                if(state.sheetId) { await fetchSubs(); fetchCards(); fetchGlobalAverage(); msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); }
+                if(state.sheetId) { await fetchSubs(); fetchCards(); fetchGlobalAverage(); loadTodayTasks(); msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); }
           else { switchView('mypage'); msg('最初にIDを登録してください'); }
         }
       }
@@ -1138,6 +1140,99 @@ if (typeof fetchCards === 'function') {
   };
 }
 
+
+// ★追加：全シートから本日の復習タスクを取得してホームに表示する
+async function loadTodayTasks() {
+    const taskArea = $('todayTasksArea');
+    if (!taskArea) return;
+    if (!state.sheetId) {
+      taskArea.innerHTML = '<p style="text-align:center; color:#888;">IDが登録されていません</p>';
+      return;
+    }
+
+    taskArea.innerHTML = '<p style="text-align:center; color:#888;">復習タスクを確認中...</p>';
+    
+    try {
+      const allSheets = [];
+      Object.values(courseData).forEach(sheets => sheets.forEach(s => allSheets.push(s)));
+
+      if(allSheets.length === 0) {
+        taskArea.innerHTML = '<p style="text-align:center; color:#888;">教材がありません</p>';
+        return;
+      }
+
+      // バッチ処理で全シートの「NextReview(G列)」データを一括取得
+      const ranges = allSheets.map(s => `ranges=${encodeURIComponent(s.actual)}!A2:G`).join('&');
+      const res = await sheetApi(`/values:batchGet?${ranges}`);
+      
+      const valueRanges = res.valueRanges || [];
+      const now = Date.now();
+      let tasksHtml = '';
+      let totalDue = 0;
+
+      valueRanges.forEach((vr, idx) => {
+        const sheetInfo = allSheets[idx];
+        const rows = vr.values || [];
+        let dueCount = 0;
+
+        rows.forEach(r => {
+          const nextReview = parseFloat(r[6]) || 0; // G列の値
+          if (!nextReview || nextReview <= now) dueCount++;
+        });
+
+        if (dueCount > 0) {
+          totalDue += dueCount;
+          tasksHtml += `
+            <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding: 15px 10px; cursor: pointer;" onclick="startTask('${sheetInfo.actual}')">
+              <div style="text-align: left; line-height: 1.4;">
+                <span style="font-size:0.75rem; color:var(--text-sub); display:block;">📁 ${sheetInfo.actual.split('｜')[0] || '基本の教材'}</span>
+                <span style="font-weight:bold; font-size:1.1rem; color:var(--text-main);">${sheetInfo.display}</span>
+              </div>
+              <div style="background:var(--accent); color:white; padding:6px 12px; border-radius:12px; font-size:0.9rem; font-weight:bold; box-shadow:var(--shadow-sm);">
+                残り ${dueCount} 問
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      if (totalDue === 0) {
+        taskArea.innerHTML = '<div style="text-align:center; padding:30px 0;"><span style="font-size:3rem;">🎉</span><br><br><span style="font-weight:bold; color:var(--primary);">本日の復習タスクはすべて完了しています！</span></div>';
+      } else {
+        taskArea.innerHTML = tasksHtml;
+      }
+    } catch (e) {
+      console.error(e);
+      taskArea.innerHTML = '<p style="text-align:center; color:#E74C3C;">タスクの取得に失敗しました</p>';
+    }
+  }
+
+  // ★追加：ホーム画面のタスクをタップした時、該当のシートを選択して学習画面へ飛ぶ
+  function startTask(sheetActualName) {
+    let targetCourse = '基本の教材';
+    if (sheetActualName.includes('｜')) {
+      targetCourse = sheetActualName.split('｜')[0];
+    }
+    
+    // UIのセレクトボックスと内部stateを連動させる
+    const courseSel = $('courseSelect');
+    if (courseSel) {
+      courseSel.value = targetCourse;
+      changeCourse(); 
+    }
+    
+    const subSel = $('subSelect');
+    if (subSel) {
+      subSel.value = sheetActualName;
+      changeSub(); 
+    }
+    
+    // ライブラリの暗記タブへ遷移
+    switchView('library');
+    switchLibTab('anki');
+  }
+
+  
 function preloadNextImages() {
     if (!state.queue || state.queue.length < 2) return;
     
