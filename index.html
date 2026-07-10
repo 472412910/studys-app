@@ -1197,7 +1197,7 @@ async function loadTodayTasks() {
       });
 
       if (totalDue === 0) {
-        taskArea.innerHTML = '<div style="text-align:center; padding:30px 0;"><span style="font-size:3rem;">🎉</span><br><br><span style="font-weight:bold; color:var(--primary);">本日の復習タスクはすべて完了しています！</span></div>';
+        taskArea.innerHTML = '<div style="text-align:center; padding:30px 0;"><span style="font-size:3rem;" >🎉</span><br><br><span style="font-weight:bold; color:var(--primary);">本日の復習タスクはすべて完了しています！</span></div>';
       } else {
         taskArea.innerHTML = tasksHtml;
       }
@@ -1387,6 +1387,15 @@ function preloadNextImages() {
       if (viewId === 'home' || viewId === 'library') {
         setTimeout(updateKnowledgeTree, 50);
       }
+    };
+  }
+
+  // 🌟 追加：スプレッドシートからデータが読み込まれたら、自動で知識の木も更新する
+  if (typeof fetchCards === 'function') {
+    const originalFetchCardsForTree = fetchCards;
+    fetchCards = async function() {
+      await originalFetchCardsForTree(); // 元の読み込み処理を実行
+      setTimeout(updateKnowledgeTree, 100); // 読み込み完了後に木を描画
     };
   }
 })();
