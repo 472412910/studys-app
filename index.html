@@ -9,7 +9,7 @@
   <style>
     :root { --primary: #4A90E2; --accent: #F5A623; --bg: #F8F9FA; --surface: #FFFFFF; --text-main: #2C3E50; --text-sub: #7F8C8D; --border: #E0E6ED; --shadow: 0 8px 24px rgba(0,0,0,0.05); --shadow-sm: 0 2px 8px rgba(0,0,0,0.04); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Helvetica Neue', 'Yu Gothic', sans-serif; background: #ECEFF1; color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
+    body { font-family: 'Helvetica Neue', 'Yu Gothic', sans-serif; background: #ECEFF1; color: var(--text-main); display: flex; justify-content: center; min-height: 100dvh; }
     .app-container { width: 100%; max-width: 480px; background: var(--surface); display: flex; flex-direction: column; position: relative; box-shadow: var(--shadow); overflow: hidden; }
     #loginSection { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; }
     #loginSection h1 { font-size: 2rem; color: var(--primary); margin-bottom: 10px; letter-spacing: 2px; }
@@ -21,7 +21,7 @@
     .main-content { flex: 1; overflow-y: auto; background: var(--bg); padding: 20px; position: relative; }
     .main-view { display: none; animation: fadeIn 0.3s ease; }
     .main-view.active { display: block; }
-    .bottom-nav { display: flex; height: 65px; background: var(--surface); border-top: 2px solid var(--border); z-index: 10; }
+    .bottom-nav { display: flex; height: 65px; background: var(--surface); border-top: 2px solid var(--border); position: sticky; bottom: 0; width: 100%; z-index: 100; }
     .nav-item { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; border-right: 2px solid var(--border); cursor: pointer; position: relative; }
     .nav-item:last-child { border-right: none; }
     .nav-item.active::after { content: ''; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); width: 40%; height: 4px; border-radius: 2px; background: var(--accent); }
@@ -75,7 +75,7 @@
     <button id="loginBtn" class="btn">Googleでログイン</button>
   </div>
 
-  <div id="appSection" class="hidden" style="display: flex; flex-direction: column; height: 100vh;">
+  <div id="appSection" class="hidden" style="display: flex; flex-direction: column; height: 100dvh; overflow: hidden;">
     <header class="app-header">
       <button class="menu-btn" onclick="toggleMenu()">三</button>
       <div id="headerTabs" class="header-tabs">
