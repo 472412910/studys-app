@@ -581,7 +581,7 @@ async function loadDriveImg(id, imgId, boxId) {
   }
 
   let cardStartTime = 0; 
-  let simpleModeTimeout = null;
+  let modeTimeout = null; // 変数名を汎用的に変更
 
   function showAns() { 
     show('aArea', true); show('evalBox', true); show('showAnsBtn', false); 
@@ -591,23 +591,41 @@ async function loadDriveImg(id, imgId, boxId) {
     if (!btns || btns.length < 4) return;
 
     btns.forEach(b => { b.style.display = 'inline-block'; b.style.opacity = '1'; b.disabled = false; });
-    clearTimeout(simpleModeTimeout);
+    if (modeTimeout) clearTimeout(modeTimeout);
+
+    const elapsed = Date.now() - cardStartTime;
 
     if (sets.mode === 'simple') {
       btns[1].style.display = 'none'; 
       btns[2].style.display = 'none'; 
       btns[3].innerText = '覚えた(4)';
       
-      const elapsed = Date.now() - cardStartTime;
       const limit = 5000; 
       
       if (elapsed >= limit) {
         btns[3].style.opacity = '0.2';
         btns[3].disabled = true;
       } else {
-        simpleModeTimeout = setTimeout(() => {
+        modeTimeout = setTimeout(() => {
           btns[3].style.opacity = '0.2';
           btns[3].disabled = true; 
+        }, limit - elapsed);
+      }
+    } else if (sets.mode === 'logical') {
+      // ▼ 論理モード時の判定を追加
+      btns[3].innerText = '簡単(4)';
+      const limit = (sets.time || 180) * 1000;
+      
+      if (elapsed >= limit) {
+        // 「もう一度(1)」以外を無効化
+        btns[1].style.opacity = '0.2'; btns[1].disabled = true;
+        btns[2].style.opacity = '0.2'; btns[2].disabled = true;
+        btns[3].style.opacity = '0.2'; btns[3].disabled = true;
+      } else {
+        modeTimeout = setTimeout(() => {
+          btns[1].style.opacity = '0.2'; btns[1].disabled = true;
+          btns[2].style.opacity = '0.2'; btns[2].disabled = true;
+          btns[3].style.opacity = '0.2'; btns[3].disabled = true;
         }, limit - elapsed);
       }
     } else {
@@ -1044,7 +1062,7 @@ function initAdvancedModes() {
   
   let isContinuousSolving = false; 
 
-if (typeof showNext === 'function') {
+  if (typeof showNext === 'function') {
   const _origShowNext = showNext;
   showNext = function() {
     _origShowNext(); 
@@ -1081,7 +1099,7 @@ if (typeof showNext === 'function') {
       show('aArea', false);
       show('evalBox', false);
       
-      if (simpleModeTimeout) clearTimeout(simpleModeTimeout);
+      if (modeTimeout) clearTimeout(modeTimeout);
       
     } else {
       show('startCardBtn', false);
@@ -1092,15 +1110,27 @@ if (typeof showNext === 'function') {
       cardStartTime = Date.now();
       
       const sets = JSON.parse(localStorage.getItem('studySettings') || '{}')[state.subject] || { mode: 'normal', time: 180 };
-      if (simpleModeTimeout) clearTimeout(simpleModeTimeout);
+      if (modeTimeout) clearTimeout(modeTimeout);
+      
       if (sets.mode === 'simple') {
-        simpleModeTimeout = setTimeout(() => {
+        modeTimeout = setTimeout(() => {
           const btns = $('evalBox').querySelectorAll('button');
           if (btns && btns.length >= 4) {
             btns[3].style.opacity = '0.2';
             btns[3].disabled = true; 
           }
         }, 5000);
+      } else if (sets.mode === 'logical') {
+        // ▼ 論理モード用のタイムアウト設定を追加
+        const limit = (sets.time || 180) * 1000;
+        modeTimeout = setTimeout(() => {
+          const btns = $('evalBox').querySelectorAll('button');
+          if (btns && btns.length >= 4) {
+            btns[1].style.opacity = '0.2'; btns[1].disabled = true;
+            btns[2].style.opacity = '0.2'; btns[2].disabled = true;
+            btns[3].style.opacity = '0.2'; btns[3].disabled = true;
+          }
+        }, limit);
       }
     }
   };
@@ -1120,15 +1150,27 @@ function startSolving() {
   cardStartTime = Date.now();
   
   const sets = JSON.parse(localStorage.getItem('studySettings') || '{}')[state.subject] || { mode: 'normal', time: 180 };
-  if (simpleModeTimeout) clearTimeout(simpleModeTimeout);
+  if (modeTimeout) clearTimeout(modeTimeout);
+  
   if (sets.mode === 'simple') {
-    simpleModeTimeout = setTimeout(() => {
+    modeTimeout = setTimeout(() => {
       const btns = $('evalBox').querySelectorAll('button');
       if (btns && btns.length >= 4) {
         btns[3].style.opacity = '0.2';
         btns[3].disabled = true;
       }
     }, 5000);
+  } else if (sets.mode === 'logical') {
+    // ▼ 論理モード用のタイムアウト設定を追加
+    const limit = (sets.time || 180) * 1000;
+    modeTimeout = setTimeout(() => {
+      const btns = $('evalBox').querySelectorAll('button');
+      if (btns && btns.length >= 4) {
+        btns[1].style.opacity = '0.2'; btns[1].disabled = true;
+        btns[2].style.opacity = '0.2'; btns[2].disabled = true;
+        btns[3].style.opacity = '0.2'; btns[3].disabled = true;
+      }
+    }, limit);
   }
 }
 
