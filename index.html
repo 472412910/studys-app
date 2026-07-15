@@ -68,6 +68,26 @@
 </head>
 <body>
 
+<!-- 使い方のポップアップモーダル -->
+<div id="tutorialModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:10000; display:flex; justify-content:center; align-items:center;">
+  <div style="background:var(--surface); padding:25px; border-radius:12px; width:90%; max-width:400px; text-align:center; box-shadow:var(--shadow);">
+    <h3 style="color:var(--primary); margin-bottom:15px;">ようこそ！</h3>
+    <p style="margin-bottom:20px; font-size:0.95rem; line-height:1.5;">まずは使い方のサイトを確認して、アプリの便利な機能をマスターしましょう。</p>
+    
+    <a href="https://sites.google.com/gse.okayama-c.ed.jp/information/%E3%83%9B%E3%83%BC%E3%83%A0" target="_blank" class="btn" style="display:inline-block; background:var(--accent); text-decoration:none; margin-bottom:20px;">
+      使い方のサイトを見る
+    </a>
+    
+    <div style="margin-bottom:20px; text-align:left; font-size:0.85rem;">
+      <label style="display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="hideTutorialChk" style="width:auto; transform:scale(1.2);"> 今後は表示しない
+      </label>
+    </div>
+    
+    <button onclick="closeTutorialModal()" class="btn" style="background:#bdc3c7; color:#333;">閉じる</button>
+  </div>
+</div>
+
 <div class="app-container">
   <div id="loginSection">
     <h1>光スタ</h1><p style="margin-bottom: 30px; color: #7F8C8D;">Premium Learning App</p>
@@ -264,6 +284,10 @@
       callback: async (res) => {
         if(res.access_token) {
           state.token = res.access_token; show('loginSection', false); show('appSection', true);
+          
+          // ★追加：ログイン成功直後にポップアップを表示（条件を満たす場合）
+          checkTutorialModal();
+
           $('inSheetId').value = state.sheetId; $('inNick').value = state.nick;
                 
                 const todayStr = new Date().toLocaleDateString('ja-JP');
@@ -1441,6 +1465,22 @@ function preloadNextImages() {
     };
   }
 })();
+
+// ★追加：チュートリアルモーダルの制御
+function checkTutorialModal() {
+    // ローカルストレージを確認し、trueでなければ表示する
+    if (localStorage.getItem('studySyncHideTutorial') !== 'true') {
+      show('tutorialModal', true);
+    }
+  }
+
+  function closeTutorialModal() {
+    // チェックボックスにチェックが入っていれば、ローカルストレージに保存
+    if ($('hideTutorialChk').checked) {
+      localStorage.setItem('studySyncHideTutorial', 'true');
+    }
+    show('tutorialModal', false);
+  }
 </script>
 </body>
 </html>
