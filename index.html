@@ -88,6 +88,36 @@
   </div>
 </div>
 
+<!-- お知らせポップアップモーダル -->
+<div id="noticeModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:10000; display:flex; justify-content:center; align-items:center;">
+  <div style="background:var(--surface); padding:25px; border-radius:12px; width:90%; max-width:400px; box-shadow:var(--shadow); position:relative; text-align:center;">
+    <!-- 閉じるボタン -->
+    <button onclick="show('noticeModal', false)" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-sub);">×</button>
+    
+    <h3 style="color:var(--primary); margin-bottom:20px;">お知らせ</h3>
+    
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <!-- 使い方のサイトへのリンク項目 -->
+      <a href="https://sites.google.com/gse.okayama-c.ed.jp/information/%E3%83%9B%E3%83%BC%E3%83%A0" target="_blank" style="display:flex; align-items:center; text-decoration:none; background:var(--bg); border-radius:8px; padding:15px; color:var(--text-main); border:1px solid var(--border); box-shadow:var(--shadow-sm); transition:0.2s;">
+        <span style="font-size:1.5rem; margin-right:15px;">🔰</span>
+        <div style="text-align:left;">
+          <div style="font-weight:bold; font-size:1rem; color:var(--primary);">アプリの使い方サイト</div>
+          <div style="font-size:0.8rem; color:var(--text-sub); margin-top:4px;">初期設定や便利な機能はこちら</div>
+        </div>
+      </a>
+      
+      <!-- 今後のお知らせ用プレースホルダー（追加のお知らせがある場合はここを増やす） -->
+      <div style="display:flex; align-items:center; background:var(--bg); border-radius:8px; padding:15px; color:var(--text-sub); border:1px dashed var(--border); opacity:0.7;">
+        <span style="font-size:1.5rem; margin-right:15px;">📢</span>
+        <div style="text-align:left;">
+          <div style="font-weight:bold; font-size:1rem;">その他のお知らせ</div>
+          <div style="font-size:0.8rem; margin-top:4px;">現在新しいお知らせはありません</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="app-container">
   <div id="loginSection">
     <h1>光スタ</h1><p style="margin-bottom: 30px; color: #7F8C8D;">Premium Learning App</p>
@@ -99,7 +129,8 @@
     <header class="app-header">
       <button class="menu-btn" onclick="toggleMenu()">三</button>
       <div id="headerTabs" class="header-tabs">
-        <div class="header-tab" onclick="alert('お知らせ機能は現在開発中です。')">お知らせ</div>
+        <!-- onclickの中身を show('noticeModal', true) に変更 -->
+        <div class="header-tab" onclick="show('noticeModal', true)">お知らせ</div>
         <div class="header-tab" onclick="alert('カレンダー機能は現在開発中です。')">カレンダー</div>
       </div>
       <div id="headerTitle" class="header-tabs hidden">
