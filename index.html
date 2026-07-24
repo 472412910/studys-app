@@ -187,6 +187,14 @@
                 <button onclick="deleteSub()" class="btn-action" style="background: #E74C3C; color: white; padding: 0 12px; height: 42px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; opacity: 0.9;" title="選択中のシートを削除">🗑️ 削除</button>
               </div>
             </div>
+            
+            <!-- 🌟 ここに追加：学習設定ボタン -->
+            <div style="margin-top: 8px; padding-top: 14px; border-top: 1px dashed var(--border); text-align: center;">
+              <button id="modeSettingBtn" onclick="openSubjectSettings()" class="btn-action hidden" style="background: #7F8C8D; width: 100%; padding: 10px; font-size: 0.9rem; font-weight: bold; border-radius: 8px;">
+                ⚙️ このシートの学習設定・難問分割
+              </button>
+            </div>
+            
           </div>
         </div>
         <div class="lib-tabs">
@@ -433,6 +441,7 @@ const baseGroup = document.createElement('optgroup');
     if (qArea) qArea.innerText = 'この教材にはまだシートがありません。「➕ 追加」を押してシートを作成してください。';
     show('startCardBtn', false); show('showAnsBtn', false);
     if ($('cardStats')) $('cardStats').innerText = '';
+    show('modeSettingBtn', false); // 🌟 追加: シートが無い時は隠す
     return;
   }
   
@@ -442,6 +451,7 @@ const baseGroup = document.createElement('optgroup');
   if (sSel) sSel.value = state.subject;
   
   if (typeof fetchCards === 'function') fetchCards();
+  show('modeSettingBtn', true); // 🌟 追加: シートが選択されている時は表示する
 }
 
 function changeCourse() { state.currentCourse = $('courseSelect').value; renderSubSelect(); }
@@ -1017,17 +1027,6 @@ function showBonusEffect() {
   } 
 
 function initAdvancedModes() {
-    const headerTitle = $('headerTitle');
-    if (headerTitle && !$('modeSettingBtn')) {
-      const btn = document.createElement('button');
-      btn.id = 'modeSettingBtn';
-      btn.innerText = '⚙️';
-      btn.style.cssText = 'position:absolute; right:15px; top:12px; background:none; border:none; font-size:1.6rem; cursor:pointer; display:none; z-index:100;';
-      btn.onclick = openSubjectSettings;
-      headerTitle.parentElement.style.position = 'relative';
-      headerTitle.parentElement.appendChild(btn);
-    }
-
     const modalHTML = `
       <div id="advSettingsModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; display:flex; justify-content:center; align-items:center;">
         <div style="background:var(--surface); padding:20px; border-radius:10px; width:90%; max-width:400px; max-height:90vh; overflow-y:auto; box-shadow:var(--shadow);">
@@ -1105,12 +1104,6 @@ function initAdvancedModes() {
       await fetchCards();
     } catch { msg('登録失敗'); }
   }
-
-  const _origSwitchView = switchView;
-  switchView = (v) => {
-    _origSwitchView(v);
-    if($('modeSettingBtn')) $('modeSettingBtn').style.display = (v === 'library' && state.subject) ? 'block' : 'none';
-  };
 
   setTimeout(initAdvancedModes, 1500);
 
