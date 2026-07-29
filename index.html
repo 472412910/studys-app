@@ -148,7 +148,7 @@
       <button class="menu-btn" onclick="toggleMenu()">三</button>
       <div id="headerTabs" class="header-tabs">
         <div class="header-tab" onclick="show('noticeModal', true)">お知らせ</div>
-        <div class="header-tab" onclick="alert('カレンダー機能は現在開発中です。')">カレンダー</div>
+        <div class="header-tab" onclick="switchView('calendar')">カレンダー</div>
       </div>
       <div id="headerTitle" class="header-tabs hidden">
         <div class="header-tab" id="viewTitle" style="border: none; cursor: default; font-size: 1.1rem; color: var(--primary);">ライブラリ</div>
@@ -248,6 +248,15 @@
         <div id="tab-list" class="hidden"><div id="cardList" style="margin-top: 10px;"></div></div>
       </div>
 
+<!-- カレンダー画面 -->
+<div id="view-calendar" class="main-view">
+  <h2 class="section-title">復習カレンダー</h2>
+  <p style="text-align:center; color:var(--text-sub); font-size:0.85rem; margin-bottom:15px;">今後の復習スケジュール</p>
+  <div class="list-card" id="calendarTasksArea">
+    <p style="text-align:center; color:#888;">予定を読み込み中...</p>
+  </div>
+</div>
+
       <div id="view-report" class="main-view">
         <div class="list-card"><h3>総学習時間</h3><p id="totalTimeDisp" style="color:var(--primary); font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 分</p></div>
         <div class="list-card"><h3>本日の学習時間</h3><p id="todayTimeDisp" style="color:#1ABC9C; font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 分</p></div>
@@ -315,21 +324,23 @@
 
   function switchView(view) {
     document.querySelectorAll('.main-view, .nav-item').forEach(el => el.classList.remove('active'));
-    $(`view-${view}`).classList.add('active'); if(view !== 'menu' && view !== 'ranking') $(`nav-${view}`).classList.add('active');
+    $(`view-${view}`).classList.add('active'); 
+    if(view !== 'menu' && view !== 'ranking' && view !== 'calendar') $(`nav-${view}`).classList.add('active');
+    
     const isHome = view === 'home'; show('headerTabs', isHome); show('headerTitle', !isHome);
-    if(!isHome) $('viewTitle').innerText = {library:'ライブラリ', report:'レポート', mypage:'マイページ', menu:'メニュー', ranking:'ランキング'}[view] || '';
+    
+    // ▼修正：calendarを追加
+    if(!isHome) $('viewTitle').innerText = {library:'ライブラリ', report:'レポート', mypage:'マイページ', menu:'メニュー', ranking:'ランキング', calendar:'カレンダー'}[view] || '';
+    
     if(state.sheetId) { 
       if(view === 'library') fetchCards(); 
       if(view === 'report') fetchReport(); 
     }
     if(view === 'ranking') fetchRanking(); 
     if(view === 'home') { fetchGlobalAverage(); loadTodayTasks(); }
-  }
-  function toggleMenu() { switchView($('view-menu').classList.contains('active') ? 'home' : 'menu'); }
-  function switchLibTab(tab) {
-    document.querySelectorAll('.lib-tab').forEach(t => t.classList.toggle('active', t.getAttribute('onclick').includes(tab)));
-    ['anki','add','list'].forEach(t => show(`tab-${t}`, t === tab));
-    if(state.sheetId && tab === 'anki') fetchCards(); if(tab === 'list') renderList();
+    
+    // ▼追加：カレンダーを開いた時のデータ取得処理
+    if(view === 'calendar') loadCalendarTasks();
   }
 
   async function sheetApi(path, method='GET', body=null, targetId = state.sheetId) {
@@ -1320,6 +1331,106 @@ async function loadTodayTasks() {
     
     switchView('library');
     switchLibTab('anki');
+  }
+
+  async function loadCalendarTasks() {
+    const taskArea = $('calendarTasksArea');
+    if (!taskArea) return;
+    if (!state.sheetId) {
+      taskArea.innerHTML = '<p style="text-align:center; color:#888;">IDが登録されていません</p>';
+      return;
+    }
+
+    taskArea.innerHTML = '<p style="text-align:center; color:#888;">カレンダーを読み込み中...</p>';
+    
+    try {
+      const allSheets = [];
+      Object.values(courseData).forEach(sheets => sheets.forEach(s => allSheets.push(s)));
+
+      if(allSheets.length === 0) {
+        taskArea.innerHTML = '<p style="text-align:center; color:#888;">教材がありません</p>';
+        return;
+      }
+
+      // バッチ処理で全シートのデータを取得
+      const ranges = allSheets.map(s => `ranges=${encodeURIComponent(s.actual)}!A2:G`).join('&');
+      const res = await sheetApi(`/values:batchGet?${ranges}`);
+      
+      const valueRanges = res.valueRanges || [];
+      const now = Date.now();
+      const schedule = {}; // 日付ごとにデータをまとめるためのオブジェクト
+
+      valueRanges.forEach((vr, idx) => {
+        const sheetInfo = allSheets[idx];
+        const rows = vr.values || [];
+        const sheetCounts = {};
+
+        rows.forEach(r => {
+          const nextReview = parseFloat(r[6]) || 0;
+          let dateStr;
+          
+          if (!nextReview || nextReview <= now) {
+            // すでに復習日が来ている（または過去分）
+            dateStr = "本日（または期限切れ）";
+          } else {
+            // 未来の復習日
+            const d = new Date(nextReview);
+            dateStr = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+          }
+
+          sheetCounts[dateStr] = (sheetCounts[dateStr] || 0) + 1;
+        });
+
+        // 全体のスケジュールに統合
+        Object.keys(sheetCounts).forEach(date => {
+          if (!schedule[date]) schedule[date] = [];
+          schedule[date].push({
+            actualName: sheetInfo.actual,
+            displayName: sheetInfo.display,
+            courseName: sheetInfo.actual.split('｜')[0] || '基本の教材',
+            count: sheetCounts[date]
+          });
+        });
+      });
+
+      // 日付を昇順にソート（「本日」は一番上に固定）
+      const sortedDates = Object.keys(schedule).sort((a, b) => {
+        if (a === "本日（または期限切れ）") return -1;
+        if (b === "本日（または期限切れ）") return 1;
+        return new Date(a) - new Date(b);
+      });
+
+      let tasksHtml = '';
+
+      sortedDates.forEach(date => {
+        // 日付見出し
+        tasksHtml += `<div style="background: var(--primary); color: white; padding: 6px 15px; border-radius: 8px; font-weight: bold; margin-top: 20px; font-size: 0.95rem;">${date}</div>`;
+        
+        // その日のタスク一覧
+        schedule[date].forEach(task => {
+          tasksHtml += `
+            <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding: 15px 10px; cursor: pointer; transition: 0.2s;" onclick="startTask('${task.actualName}')">
+              <div style="text-align: left; line-height: 1.4;">
+                <span style="font-size:0.75rem; color:var(--text-sub); display:block;">📁 ${task.courseName}</span>
+                <span style="font-weight:bold; font-size:1.1rem; color:var(--text-main);">${task.displayName}</span>
+              </div>
+              <div style="background:var(--accent); color:white; padding:6px 12px; border-radius:12px; font-size:0.9rem; font-weight:bold; box-shadow:var(--shadow-sm);">
+                ${task.count} 問
+              </div>
+            </div>
+          `;
+        });
+      });
+
+      if (tasksHtml === '') {
+        taskArea.innerHTML = '<div style="text-align:center; padding:30px 0;">🎉<br><br>予定されている復習タスクはありません！</div>';
+      } else {
+        taskArea.innerHTML = tasksHtml;
+      }
+    } catch (e) {
+      console.error(e);
+      taskArea.innerHTML = '<p style="text-align:center; color:#E74C3C;">カレンダーの取得に失敗しました</p>';
+    }
   }
 
 function preloadNextImages() {
