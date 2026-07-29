@@ -174,6 +174,14 @@
       </div>
 
       <div id="view-home" class="main-view active">
+        <div class="list-card" id="countdownCard" style="margin-bottom: 25px; text-align: center; background: linear-gradient(135deg, var(--primary), #8E44AD); color: white; border: none;">
+          <h3 style="font-size:1.1rem; margin-bottom:5px; opacity: 0.9;" id="countdownTitle">目標が未設定です</h3>
+          <div style="display:flex; justify-content:center; align-items:baseline; margin: 15px 0;">
+            <p id="countdownDays" style="font-size: 3.5rem; font-weight: bold; font-family: monospace; line-height: 1;">--</p>
+            <span id="countdownUnit" style="font-size: 1.2rem; margin-left: 8px; font-weight: bold;">日</span>
+          </div>
+          <button onclick="switchView('mypage')" class="btn-action" id="countdownBtn" style="background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.5); font-size: 0.9rem;">目標を設定する</button>
+        </div>
         <h2 class="section-title">本日のタスク</h2>
         <div class="list-card" style="margin-bottom: 15px; text-align: center;">
           <h3 style="font-size:0.9rem; color:var(--text-sub);">みんなの1日あたりの平均学習時間</h3>
@@ -289,6 +297,17 @@
 
       <div id="view-mypage" class="main-view">
         <div class="form-group"><label>ニックネーム</label><input type="text" id="inNick" placeholder="例: 太郎"></div>
+        <div class="divider" style="margin: 25px 0;"></div>
+        <h3 style="font-size: 1.1rem; color: var(--primary); margin-bottom: 15px;">🎯 目標カウントダウン設定</h3>
+        <div class="form-group">
+          <label>目標名 (1つのみ)</label>
+          <input type="text" id="inTargetName" placeholder="例: 共通テスト、第一志望校">
+        </div>
+        <div class="form-group">
+          <label>目標日 (本番の日付)</label>
+          <input type="date" id="inTargetDate">
+        </div>
+        <div class="divider" style="margin: 25px 0;"></div>
         <div class="form-group">
           <label>スプレッドシート連携（ID）</label>
           <input type="text" id="inSheetId" placeholder="例: 1j_yPSiztoIr0c...">
@@ -384,7 +403,14 @@
                   $('inNick').disabled = true;
                 }
 
-                if(state.sheetId) { await fetchSubs(); fetchCards(); fetchGlobalAverage(); loadTodayTasks(); msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); }
+                if(state.sheetId) { 
+                  await fetchSettings();
+                  await fetchSubs(); 
+                  fetchCards(); 
+                  fetchGlobalAverage(); 
+                  loadTodayTasks(); 
+                  msg(state.nick ? `ようこそ、${state.nick}さん！` : '同期完了'); 
+                }
           else { switchView('mypage'); msg('最初にIDを登録してください'); }
         }
       }
@@ -982,8 +1008,11 @@ $('startTimer').onclick = () => {
     }
   }
 
-  function saveMyPage() {
+// ▼ 修正：saveMyPage関数 ▼
+async function saveMyPage() {
     const id = $('inSheetId').value.trim(), nick = $('inNick').value.trim(); 
+    const tName = $('inTargetName').value.trim(), tDate = $('inTargetDate').value;
+
     if(!id) return alert('IDを入力してください');
     if(!nick) return alert('ランキング参加のためニックネームを入力してください'); 
 
@@ -1001,12 +1030,27 @@ $('startTimer').onclick = () => {
 
     localStorage.setItem('studySyncSheetId', state.sheetId = id); 
     localStorage.setItem('studySyncNickname', state.nick = nick);
+    localStorage.setItem('studySyncTargetName', tName);
+    localStorage.setItem('studySyncTargetDate', tDate);
+
+    // スプレッドシートのSettingsシートに保存
+    if(state.sheetId) {
+      msg('設定を保存中...');
+      try {
+        await sheetApi('/values/Settings!A1:B1?valueInputOption=USER_ENTERED', 'PUT', { values: [[tName, tDate]] });
+      } catch (e) {
+        console.warn('Settingsシートへの書き込みエラー', e);
+      }
+    }
+
+    updateCountdown();
     alert('保存しました！'); 
     if(nick) msg(`ようこそ、${nick}さん！`); 
     fetchSubs(); 
     switchView('library'); 
     switchLibTab('anki');
   }
+  // ▲ 修正ここまで ▲
 
 async function fetchGlobalAverage() {
     if(!state.masterSheetId || state.masterSheetId === 'YOUR_MASTER_SHEET_ID_HERE') {
@@ -1627,6 +1671,58 @@ function checkTutorialModal() {
     }
     show('tutorialModal', false);
   }
+
+// ▼ 追加：カウントダウン設定の読み込みと表示更新 ▼
+async function fetchSettings() {
+    if(!state.sheetId) return;
+    try {
+      const res = await sheetApi('/values/Settings!A1:B1');
+      if(res.values && res.values[0]) {
+        const targetName = res.values[0][0] || '';
+        const targetDate = res.values[0][1] || '';
+        localStorage.setItem('studySyncTargetName', targetName);
+        localStorage.setItem('studySyncTargetDate', targetDate);
+        $('inTargetName').value = targetName;
+        $('inTargetDate').value = targetDate;
+      }
+    } catch(e) {
+      console.warn('Settingsシートが見つからないか、データがありません', e);
+    }
+    updateCountdown();
+  }
+
+  function updateCountdown() {
+    const tName = localStorage.getItem('studySyncTargetName') || '';
+    const tDate = localStorage.getItem('studySyncTargetDate') || '';
+    const card = $('countdownCard');
+    if(!card) return;
+    
+    if (tName && tDate) {
+      const target = new Date(tDate).setHours(0,0,0,0);
+      const now = new Date().setHours(0,0,0,0);
+      const diffDays = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+      
+      $('countdownTitle').innerText = `${tName}まで あと`;
+      show('countdownUnit', true);
+      
+      if(diffDays > 0) {
+        $('countdownDays').innerText = diffDays;
+      } else if(diffDays === 0) {
+        $('countdownDays').innerText = `本日`;
+        show('countdownUnit', false);
+      } else {
+        $('countdownDays').innerText = `終了`;
+        show('countdownUnit', false);
+      }
+      show('countdownBtn', false);
+    } else {
+      $('countdownTitle').innerText = `目標が未設定です`;
+      $('countdownDays').innerText = `--`;
+      show('countdownUnit', true);
+      show('countdownBtn', true);
+    }
+  }
+  // ▲ 追加ここまで ▲
 
 // ▼ 追加：手動記録用の処理 ▼
 function openManualRecordModal() {
