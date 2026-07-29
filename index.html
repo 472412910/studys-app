@@ -444,7 +444,8 @@ async function fetchSubs() {
   if (!state.sheetId) return;
   try {
     const res = await sheetApi('');
-    const sheets = res.sheets.map(s => s.properties.title).filter(t => !['Logs', 'ReportSummary', 'Ranking', 'DailyLog'].includes(t));
+    // ▼ 修正箇所：除外リストに 'Settings' を追加しました
+    const sheets = res.sheets.map(s => s.properties.title).filter(t => !['Logs', 'ReportSummary', 'Ranking', 'DailyLog', 'Settings'].includes(t));
     
     courseData = {};
     
