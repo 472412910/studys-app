@@ -106,7 +106,7 @@
         </div>
       </a>
       
-      <!-- 今後のお知らせ用プレースホルダー（追加のお知らせがある場合はここを増やす） -->
+      <!-- 今後のお知らせ用プレースホルダー -->
       <div style="display:flex; align-items:center; background:var(--bg); border-radius:8px; padding:15px; color:var(--text-sub); border:1px dashed var(--border); opacity:0.7;">
         <span style="font-size:1.5rem; margin-right:15px;">📢</span>
         <div style="text-align:left;">
@@ -117,6 +117,24 @@
     </div>
   </div>
 </div>
+
+<!-- ▼ 追加：手動記録ポップアップモーダル ▼ -->
+<div id="manualRecordModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:10000; display:flex; justify-content:center; align-items:center;">
+  <div style="background:var(--surface); padding:25px; border-radius:12px; width:90%; max-width:320px; box-shadow:var(--shadow); position:relative; text-align:center;">
+    <button onclick="show('manualRecordModal', false)" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-sub);">×</button>
+    
+    <h3 style="color:var(--text-main); margin-bottom:10px; font-size: 1.1rem;">手動で学習時間を記録</h3>
+    <p id="manualRecordTargetSub" style="color:var(--primary); font-weight:bold; margin-bottom:20px; font-size: 0.95rem;"></p>
+    
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 25px;">
+      <input type="number" id="manualTimeInputPopup" placeholder="0" min="1" step="1" style="width: 120px; text-align: right; font-size: 1.5rem; font-weight: bold; padding: 10px;">
+      <span style="font-weight: bold; color: var(--text-sub); font-size: 1.2rem;">分</span>
+    </div>
+    
+    <button onclick="executeManualRecord()" class="btn" style="background:var(--accent);">記録を保存する</button>
+  </div>
+</div>
+<!-- ▲ 追加ここまで ▲ -->
 
 <div class="app-container">
   <div id="loginSection">
@@ -129,7 +147,6 @@
     <header class="app-header">
       <button class="menu-btn" onclick="toggleMenu()">三</button>
       <div id="headerTabs" class="header-tabs">
-        <!-- onclickの中身を show('noticeModal', true) に変更 -->
         <div class="header-tab" onclick="show('noticeModal', true)">お知らせ</div>
         <div class="header-tab" onclick="alert('カレンダー機能は現在開発中です。')">カレンダー</div>
       </div>
@@ -141,8 +158,10 @@
     <main class="main-content">
       <div id="status-app" class="status-msg" style="margin-bottom: 10px;"></div>
       
+      <!-- ★ 修正箇所：三のメニュー内に「勉強法」を追加 -->
       <div id="view-menu" class="main-view">
         <div class="menu-item" onclick="switchView('ranking')">ランキング</div><div class="divider"></div>
+        <div class="menu-item" onclick="window.open('https://sites.google.com/gse.okayama-c.ed.jp/tips/%E3%83%9B%E3%83%BC%E3%83%A0', '_blank')">勉強法</div><div class="divider"></div>
         <div class="menu-item" onclick="window.open('https://docs.google.com/forms/d/e/1FAIpQLSet9BAFH70rwi82S_8EoT-5Vf9LwZSRJPhgRj8G2conmltxSg/viewform?usp=dialog', '_blank')">サポート（FAQ）</div><div class="divider"></div>
       </div>
 
@@ -188,7 +207,6 @@
               </div>
             </div>
             
-            <!-- 🌟 ここに追加：学習設定ボタン -->
             <div style="margin-top: 8px; padding-top: 14px; border-top: 1px dashed var(--border); text-align: center;">
               <button id="modeSettingBtn" onclick="openSubjectSettings()" class="btn-action hidden" style="background: #7F8C8D; width: 100%; padding: 10px; font-size: 0.9rem; font-weight: bold; border-radius: 8px;">
                 ⚙️ このシートの学習設定・難問分割
@@ -243,9 +261,16 @@
         <div class="divider" style="margin: 30px 0;"></div>
         <div class="form-group">
           <label>学習する教科・教材</label>
-          <select id="timerSubSelect" onchange="changeTimerSub()">
-            <option value="国語">国語</option><option value="数学">数学</option><option value="英語">英語</option><option value="社会">社会</option><option value="理科">理科</option><option value="その他">その他</option>
-          </select>
+          <!-- ▼ 横並びにするためにdivを追加 ▼ -->
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="timerSubSelect" onchange="changeTimerSub()" style="flex: 1;">
+              <option value="国語">国語</option><option value="数学">数学</option><option value="英語">英語</option><option value="社会">社会</option><option value="理科">理科</option><option value="その他">その他</option>
+            </select>
+            <button onclick="openManualRecordModal()" class="btn-action" style="background: var(--accent); white-space: nowrap; height: 46px; padding: 0 15px; border-radius: 8px;">
+              ✎ 手動記録
+            </button>
+          </div>
+          <!-- ▲ 追加ここまで ▲ -->
         </div>
         <h3 style="text-align:center; font-size:0.9rem; color:var(--text-sub);">タイマー記録</h3>
         <div class="timer-display" id="timerDisp">00:00:00</div>
@@ -258,7 +283,6 @@
         <div class="form-group">
           <label>スプレッドシート連携（ID）</label>
           <input type="text" id="inSheetId" placeholder="例: 1j_yPSiztoIr0c...">
-          <!-- 🌟 追加: ID取得方法へのリンク -->
           <div style="text-align: right; margin-top: 6px;">
             <a href="https://sites.google.com/gse.okayama-c.ed.jp/information/%E3%83%9B%E3%83%BC%E3%83%A0" target="_blank" style="font-size: 0.75rem; color: var(--primary); text-decoration: underline;">IDの取得方法はこちら</a>
           </div>
@@ -323,8 +347,6 @@
       callback: async (res) => {
         if(res.access_token) {
           state.token = res.access_token; show('loginSection', false); show('appSection', true);
-          
-          // ★追加：ログイン成功直後にポップアップを表示（条件を満たす場合）
           checkTutorialModal();
 
           $('inSheetId').value = state.sheetId; $('inNick').value = state.nick;
@@ -404,8 +426,7 @@ function renderSubSelect() {
   if (tSel) tSel.innerHTML = '';
   
   if (tSel) {
-// 🌟 1. 基本の五教科グループを追加
-const baseGroup = document.createElement('optgroup');
+    const baseGroup = document.createElement('optgroup');
     baseGroup.label = "基本の五教科";
     ['国語', '数学', '英語', '理科', '社会', 'その他'].forEach(sub => {
       let opt = document.createElement('option');
@@ -414,14 +435,11 @@ const baseGroup = document.createElement('optgroup');
     });
     tSel.appendChild(baseGroup);
 
-    // 🌟 2. 自分で追加した教材名（大分類）を追加
     const customGroup = document.createElement('optgroup');
     customGroup.label = "追加した教材";
     Object.keys(courseData).forEach(c => {
-      // デフォルトの「基本の教材」フォルダ以外の教材名をプルダウンに追加
       if (c && c !== '基本の教材') {
         let opt = document.createElement('option');
-        // シート名ではなく教材名(c)をvalueに設定して記録させる
         opt.value = c; 
         opt.innerText = `📁 ${c}`;
         customGroup.appendChild(opt);
@@ -441,7 +459,7 @@ const baseGroup = document.createElement('optgroup');
     if (qArea) qArea.innerText = 'この教材にはまだシートがありません。「➕ 追加」を押してシートを作成してください。';
     show('startCardBtn', false); show('showAnsBtn', false);
     if ($('cardStats')) $('cardStats').innerText = '';
-    show('modeSettingBtn', false); // 🌟 追加: シートが無い時は隠す
+    show('modeSettingBtn', false);
     return;
   }
   
@@ -451,7 +469,7 @@ const baseGroup = document.createElement('optgroup');
   if (sSel) sSel.value = state.subject;
   
   if (typeof fetchCards === 'function') fetchCards();
-  show('modeSettingBtn', true); // 🌟 追加: シートが選択されている時は表示する
+  show('modeSettingBtn', true);
 }
 
 function changeCourse() { state.currentCourse = $('courseSelect').value; renderSubSelect(); }
@@ -577,7 +595,6 @@ async function loadDriveImg(id, imgId, boxId) {
   }
 }
 
-  // ★追加：スプレッドシートから問題を読み込む処理
   async function fetchCards() {
     if(!state.subject || !checkId()) return;
     msg('カードを読み込み中...');
@@ -585,7 +602,7 @@ async function loadDriveImg(id, imgId, boxId) {
       const res = await sheetApi(`/values/${encodeURIComponent(state.subject)}!A2:I`);
       const rows = res.values || [];
       state.cards = rows.map((r, i) => ({
-        rowIndex: i + 2, // シート上の行番号
+        rowIndex: i + 2,
         id: r[0],
         q: r[1] || '',
         a: r[2] || '',
@@ -599,14 +616,12 @@ async function loadDriveImg(id, imgId, boxId) {
 
       const now = Date.now();
       state.queue = [];
-      // 復習期日が来ている、または未学習のカードを抽出
       state.cards.forEach((c, i) => {
         if (!c.next || c.next <= now) {
           state.queue.push(i);
         }
       });
 
-      // シャッフル
       state.queue.sort(() => Math.random() - 0.5);
 
       if ($('cardStats')) $('cardStats').innerText = `残り: ${state.queue.length}枚`;
@@ -623,7 +638,6 @@ async function loadDriveImg(id, imgId, boxId) {
       }
       msg('同期完了');
       
-      // リストタブが開かれていたら更新
       if(document.getElementById('tab-list') && !document.getElementById('tab-list').classList.contains('hidden')) {
         renderList();
       }
@@ -632,7 +646,6 @@ async function loadDriveImg(id, imgId, boxId) {
       console.error(e);
     }
   }
-
 
   function showNext() {
     show('aArea', false); show('evalBox', false);
@@ -646,7 +659,7 @@ async function loadDriveImg(id, imgId, boxId) {
   }
 
   let cardStartTime = 0; 
-  let modeTimeout = null; // 変数名を汎用的に変更
+  let modeTimeout = null;
 
   function showAns() { 
     show('aArea', true); show('evalBox', true); show('showAnsBtn', false); 
@@ -677,12 +690,10 @@ async function loadDriveImg(id, imgId, boxId) {
         }, limit - elapsed);
       }
     } else if (sets.mode === 'logical') {
-      // ▼ 論理モード時の判定を追加
       btns[3].innerText = '簡単(4)';
       const limit = (sets.time || 180) * 1000;
       
       if (elapsed >= limit) {
-        // 「もう一度(1)」以外を無効化
         btns[1].style.opacity = '0.2'; btns[1].disabled = true;
         btns[2].style.opacity = '0.2'; btns[2].disabled = true;
         btns[3].style.opacity = '0.2'; btns[3].disabled = true;
@@ -697,7 +708,6 @@ async function loadDriveImg(id, imgId, boxId) {
       btns[3].innerText = '簡単(4)';
     }
   }
-
 
 async function evalCard(quality) { 
     msg('記録中...'); 
@@ -893,7 +903,6 @@ $('startTimer').onclick = () => {
       if(state.chartInstance) state.chartInstance.destroy();
       if(!labels.length) { $('totalTimeDisp').innerText = $('todayTimeDisp').innerText = $('weeklyTimeDisp').innerText = '0 分'; return msg('学習データがまだありません'); }
       state.chartInstance = new Chart($('studyChart'), {
-        // 🎨 追加した教材分も綺麗に表示されるよう、カラーパレットの色を大幅に追加しました
         type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: ['#4A90E2', '#1ABC9C', '#F5A623', '#E74C3C', '#9B59B6', '#34495E', '#7F8C8D', '#FF69B4', '#20B2AA', '#FFD700', '#8A2BE2', '#3CB371', '#FF8C00', '#4682B4'], borderWidth: 2, borderColor: '#ffffff' }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, family: 'Yu Gothic' }, padding: 15 } }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} 分` } } }, cutout: '65%' }
       }); msg('同期完了');
@@ -1107,7 +1116,6 @@ function initAdvancedModes() {
 
   setTimeout(initAdvancedModes, 1500);
 
-  
   let isContinuousSolving = false; 
 
   if (typeof showNext === 'function') {
@@ -1169,7 +1177,6 @@ function initAdvancedModes() {
           }
         }, 5000);
       } else if (sets.mode === 'logical') {
-        // ▼ 論理モード用のタイムアウト設定を追加
         const limit = (sets.time || 180) * 1000;
         modeTimeout = setTimeout(() => {
           const btns = $('evalBox').querySelectorAll('button');
@@ -1209,7 +1216,6 @@ function startSolving() {
       }
     }, 5000);
   } else if (sets.mode === 'logical') {
-    // ▼ 論理モード用のタイムアウト設定を追加
     const limit = (sets.time || 180) * 1000;
     modeTimeout = setTimeout(() => {
       const btns = $('evalBox').querySelectorAll('button');
@@ -1230,8 +1236,6 @@ if (typeof fetchCards === 'function') {
   };
 }
 
-
-// ★追加：全シートから本日の復習タスクを取得してホームに表示する
 async function loadTodayTasks() {
     const taskArea = $('todayTasksArea');
     if (!taskArea) return;
@@ -1251,7 +1255,6 @@ async function loadTodayTasks() {
         return;
       }
 
-      // バッチ処理で全シートの「NextReview(G列)」データを一括取得
       const ranges = allSheets.map(s => `ranges=${encodeURIComponent(s.actual)}!A2:G`).join('&');
       const res = await sheetApi(`/values:batchGet?${ranges}`);
       
@@ -1266,7 +1269,7 @@ async function loadTodayTasks() {
         let dueCount = 0;
 
         rows.forEach(r => {
-          const nextReview = parseFloat(r[6]) || 0; // G列の値
+          const nextReview = parseFloat(r[6]) || 0;
           if (!nextReview || nextReview <= now) dueCount++;
         });
 
@@ -1297,14 +1300,12 @@ async function loadTodayTasks() {
     }
   }
 
-  // ★追加：ホーム画面のタスクをタップした時、該当のシートを選択して学習画面へ飛ぶ
   function startTask(sheetActualName) {
     let targetCourse = '基本の教材';
     if (sheetActualName.includes('｜')) {
       targetCourse = sheetActualName.split('｜')[0];
     }
     
-    // UIのセレクトボックスと内部stateを連動させる
     const courseSel = $('courseSelect');
     if (courseSel) {
       courseSel.value = targetCourse;
@@ -1317,12 +1318,10 @@ async function loadTodayTasks() {
       changeSub(); 
     }
     
-    // ライブラリの暗記タブへ遷移
     switchView('library');
     switchLibTab('anki');
   }
 
-  
 function preloadNextImages() {
     if (!state.queue || state.queue.length < 2) return;
     
@@ -1354,7 +1353,6 @@ function preloadNextImages() {
     const _baseShowNextForPreload = showNext;
     showNext = function() {
       _baseShowNextForPreload(); 
-      
       setTimeout(preloadNextImages, 100); 
     };
   }
@@ -1480,31 +1478,60 @@ function preloadNextImages() {
     };
   }
 
-  // 🌟 追加：スプレッドシートからデータが読み込まれたら、自動で知識の木も更新する
   if (typeof fetchCards === 'function') {
     const originalFetchCardsForTree = fetchCards;
     fetchCards = async function() {
-      await originalFetchCardsForTree(); // 元の読み込み処理を実行
-      setTimeout(updateKnowledgeTree, 100); // 読み込み完了後に木を描画
+      await originalFetchCardsForTree();
+      setTimeout(updateKnowledgeTree, 100);
     };
   }
 })();
 
-// ★追加：チュートリアルモーダルの制御
 function checkTutorialModal() {
-    // ローカルストレージを確認し、trueでなければ表示する
     if (localStorage.getItem('studySyncHideTutorial') !== 'true') {
       show('tutorialModal', true);
     }
   }
 
   function closeTutorialModal() {
-    // チェックボックスにチェックが入っていれば、ローカルストレージに保存
     if ($('hideTutorialChk').checked) {
       localStorage.setItem('studySyncHideTutorial', 'true');
     }
     show('tutorialModal', false);
   }
+
+// ▼ 追加：手動記録用の処理 ▼
+function openManualRecordModal() {
+    const sub = $('timerSubSelect').value || '国語';
+    $('manualRecordTargetSub').innerText = `対象: ${sub}`;
+    $('manualTimeInputPopup').value = '';
+    show('manualRecordModal', true);
+  }
+
+  async function executeManualRecord() {
+    if(!checkId()) return;
+    
+    const minutes = parseFloat($('manualTimeInputPopup').value);
+    if(isNaN(minutes) || minutes <= 0) {
+      return alert('正しい学習時間（分）を半角数字で入力してください。');
+    }
+    
+    msg('手動記録を保存中...');
+    show('manualRecordModal', false);
+    
+    try {
+      const subject = $('timerSubSelect').value || '国語';
+      // 既存のタイマーと同じ保存関数を使って連携させる
+      await saveStudyLog(subject, minutes);
+      
+      msg('保存完了');
+      await fetchReport(); // グラフや合計時間を即座に更新
+    } catch(e) {
+      msg('保存失敗');
+      console.error(e);
+    }
+  }
+  // ▲ 追加ここまで ▲
 </script>
 </body>
 </html>
