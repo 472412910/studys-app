@@ -322,6 +322,23 @@
     masterSheetId: '1rpP2oDsemJsw8ICJOBTqNkycQR-V2eIQ6fQzbiaYHdQ'
   };
 
+  let previousView = 'home';
+  
+  function toggleMenu() {
+    const isMenuOpen = $('view-menu').classList.contains('active');
+    if (isMenuOpen) {
+      // 既にメニューが開いている場合は、1つ前の画面に戻る
+      switchView(previousView);
+    } else {
+      // メニューを開く前に、現在の画面を記憶しておく
+      const activeView = document.querySelector('.main-view.active');
+      if (activeView && activeView.id !== 'view-menu') {
+        previousView = activeView.id.replace('view-', '');
+      }
+      switchView('menu');
+    }
+  }
+
   function switchView(view) {
     document.querySelectorAll('.main-view, .nav-item').forEach(el => el.classList.remove('active'));
     $(`view-${view}`).classList.add('active'); 
