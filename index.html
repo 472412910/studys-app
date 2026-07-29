@@ -341,6 +341,23 @@
     masterSheetId: '1rpP2oDsemJsw8ICJOBTqNkycQR-V2eIQ6fQzbiaYHdQ'
   };
 
+  function switchLibTab(tab) {
+    // 1. タブの見た目（アクティブ状態）を切り替える
+    document.querySelectorAll('.lib-tab').forEach(el => {
+      el.classList.toggle('active', el.getAttribute('onclick').includes(`'${tab}'`));
+    });
+    
+    // 2. 該当するコンテンツ画面を表示・非表示にする
+    show('tab-anki', tab === 'anki');
+    show('tab-add', tab === 'add');
+    show('tab-list', tab === 'list');
+    
+    // 3. 既存の学習機能との連動（一覧タブが開かれたらリストを描画する）
+    if (tab === 'list') {
+      renderList();
+    }
+  }
+  
   let previousView = 'home';
   
   function toggleMenu() {
