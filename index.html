@@ -265,10 +265,10 @@
   </div>
 </div>
 
-      <div id="view-report" class="main-view">
-        <div class="list-card"><h3>総学習時間</h3><p id="totalTimeDisp" style="color:var(--primary); font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 分</p></div>
-        <div class="list-card"><h3>本日の学習時間</h3><p id="todayTimeDisp" style="color:#1ABC9C; font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 分</p></div>
-        <div class="list-card"><h3>今週の学習時間（直近7日間）</h3><p id="weeklyTimeDisp" style="color:var(--accent); font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 分</p></div>
+<div id="view-report" class="main-view">
+  <div class="list-card"><h3>総学習時間</h3><p id="totalTimeDisp" style="color:var(--primary); font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 時間</p></div>
+  <div class="list-card"><h3>本日の学習時間</h3><p id="todayTimeDisp" style="color:#1ABC9C; font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 時間</p></div>
+  <div class="list-card"><h3>今週の学習時間（直近7日間）</h3><p id="weeklyTimeDisp" style="color:var(--accent); font-weight:bold; font-size:1.2rem; margin-top:5px;">-- 時間</p></div>
         <div class="list-card">
           <h3>教科・教材別学習バランス</h3>
           <div style="position: relative; margin: 15px auto 0 auto; height: 220px; width: 100%;">
@@ -964,19 +964,32 @@ $('startTimer').onclick = () => {
       const [resSummary, resLogs] = await Promise.all([sheetApi('/values/ReportSummary!A2:B').catch(()=>({})), sheetApi('/values/Logs!A2:C').catch(()=>({}))]);
       const rows = resSummary.values || [], summary = {}; let totalMinutes = 0;
       rows.forEach(r => r[0] && (totalMinutes += (summary[r[0]] = parseFloat(r[1]) || 0)));
-      $('totalTimeDisp').innerText = `${totalMinutes.toFixed(1)} 分`;
+      
+      // ★ 60で割って時間表示に変換
+      $('totalTimeDisp').innerText = `${(totalMinutes / 60).toFixed(1)} 時間`;
+      
       let weeklyMinutes = 0, todayMinutes = 0; const oneWeekAgo = Date.now() - 7*86400000, today = new Date().setHours(0,0,0,0);
       (resLogs.values || []).forEach(r => {
         if (!r[0]) return; const logTime = new Date(r[0]).getTime(), min = parseFloat(r[2]) || 0;
         if (!isNaN(logTime)) { if (logTime >= oneWeekAgo) weeklyMinutes += min; if (logTime >= today) todayMinutes += min; }
       });
-      $('weeklyTimeDisp').innerText = `${weeklyMinutes.toFixed(1)} 分`; $('todayTimeDisp').innerText = `${todayMinutes.toFixed(1)} 分`;
-      const labels = Object.keys(summary), values = Object.values(summary).map(v => +v.toFixed(1));
+      
+      // ★ 60で割って時間表示に変換
+      $('weeklyTimeDisp').innerText = `${(weeklyMinutes / 60).toFixed(1)} 時間`; 
+      $('todayTimeDisp').innerText = `${(todayMinutes / 60).toFixed(1)} 時間`;
+      
+      // ★ グラフの値(values)も60で割る
+      const labels = Object.keys(summary), values = Object.values(summary).map(v => +(v / 60).toFixed(1));
+      
       if(state.chartInstance) state.chartInstance.destroy();
-      if(!labels.length) { $('totalTimeDisp').innerText = $('todayTimeDisp').innerText = $('weeklyTimeDisp').innerText = '0 分'; return msg('学習データがまだありません'); }
+      
+      // ★ 空の時の初期表示を「0.0 時間」に変更
+      if(!labels.length) { $('totalTimeDisp').innerText = $('todayTimeDisp').innerText = $('weeklyTimeDisp').innerText = '0.0 時間'; return msg('学習データがまだありません'); }
+      
       state.chartInstance = new Chart($('studyChart'), {
         type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: ['#4A90E2', '#1ABC9C', '#F5A623', '#E74C3C', '#9B59B6', '#34495E', '#7F8C8D', '#FF69B4', '#20B2AA', '#FFD700', '#8A2BE2', '#3CB371', '#FF8C00', '#4682B4'], borderWidth: 2, borderColor: '#ffffff' }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, family: 'Yu Gothic' }, padding: 15 } }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} 分` } } }, cutout: '65%' }
+        // ★ グラフツールチップの表示を「時間」に変更
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, family: 'Yu Gothic' }, padding: 15 } }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} 時間` } } }, cutout: '65%' }
       }); msg('同期完了');
     } catch { msg('レポート読込失敗'); }
   }
