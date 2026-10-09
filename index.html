@@ -174,8 +174,13 @@
       </div>
 
       <div id="view-ranking" class="main-view">
-        <h2 class="section-title">本日の学習ランキング</h2>
-        <p style="text-align:center; color:var(--text-sub); font-size:0.85rem; margin-bottom:15px;">※今日（0時以降）の学習時間が表示されます</p>
+        <h2 class="section-title">学習ランキング</h2>
+        <!-- 追加：今日と昨日の切り替えタブ -->
+        <div class="lib-tabs" style="margin-bottom: 15px;">
+          <div id="rankTabToday" class="lib-tab active" onclick="switchRankingTab('today')">今日</div>
+          <div id="rankTabYesterday" class="lib-tab" onclick="switchRankingTab('yesterday')">昨日</div>
+        </div>
+        <p id="rankingDesc" style="text-align:center; color:var(--text-sub); font-size:0.85rem; margin-bottom:15px;">※今日（0時以降）の学習時間が表示されます</p>
         <div class="list-card" id="rankingListArea">
           <p style="text-align:center; color:#888;">ランキング読込中...</p>
         </div>
@@ -237,6 +242,12 @@
           <div class="lib-tab" onclick="switchLibTab('list')">一覧</div>
         </div>
         <div id="tab-anki">
+          <!-- ▼ 追加：今日やるべきシートが複数ある場合に選択できるエリア ▼ -->
+          <div id="todaySheetsPicker" style="margin-bottom: 12px;"></div>
+
+          <!-- ▼ 追加：学習を中断してシート選択に戻るボタン ▼ -->
+          <button id="interruptBtn" class="btn-action hidden" style="background:#7F8C8D; margin-bottom: 12px; width:100%; font-size:0.95rem; padding:12px;" onclick="resetToInitialSolvingState()">⏹ 学習を中断してシート選択に戻る</button>
+
           <div id="cardStats" style="font-size: 0.85rem; color: var(--text-sub); text-align: right;"></div>
           <div class="flashcard">
             <div id="qArea">カードを読み込んでいます...</div>
@@ -250,19 +261,38 @@
               </div>
             </div>
           </div>
-          <button id="showAnsBtn" class="btn hidden" onclick="showAns()">答えを見る</button>
+          <button id="showAnsBtn" class="btn hidden" onclick="showAns()">採点・評価</button>
           <div id="evalBox" class="eval-buttons hidden">
-            <button onclick="evalCard(1)" style="background:#E74C3C;">もう一度(1)</button>
-            <button onclick="evalCard(2)" style="background:#E67E22;">難しい(2)</button>
-            <button onclick="evalCard(3)" style="background:#1ABC9C;">普通(3)</button>
-            <button onclick="evalCard(4)" style="background:#4A90E2;">簡単(4)</button>
+            <button onclick="evalCard(1)" style="background:#E74C3C;">もう一度</button>
+            <button onclick="evalCard(2)" style="background:#E67E22;">難しい</button>
+            <button onclick="evalCard(3)" style="background:#1ABC9C;">普通</button>
+            <button onclick="evalCard(4)" style="background:#4A90E2;">簡単</button>
           </div>
         </div>
         <div id="tab-add" class="hidden">
-          <div class="form-group"><label>問題（表面）</label><input type="text" id="addQ" placeholder="例: Apple"></div>
-          <div class="form-group"><label>問題の画像（任意）</label><input type="file" id="addQImg" accept="image/*" style="padding:10px;"></div>
-          <div class="form-group"><label>答え（裏面）</label><textarea id="addA" rows="3" placeholder="例: りんご"></textarea></div>
-          <div class="form-group"><label>答えの画像（任意）</label><input type="file" id="addAImg" accept="image/*" style="padding:10px;"></div>
+<!-- 追加：登録タイプ切り替えボタン -->
+          <div id="addTypeSelectorGroup" class="form-group" style="margin-bottom: 15px;">
+            <label>登録タイプ</label>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+              <button id="addTypeQuestionBtn" type="button" onclick="switchAddType('question')" class="btn-action" style="flex: 1; background: var(--primary); padding: 10px; border-radius: 8px;">問題追加</button>
+              <button id="addTypeRangeBtn" type="button" onclick="switchAddType('range')" class="btn-action" style="flex: 1; background: #ccc; padding: 10px; color: #333; border-radius: 8px;">範囲登録</button>
+            </div>
+          </div>
+
+          <!-- 問題追加フォーム -->
+          <div id="addQuestionForm">
+            <div class="form-group"><label>問題（表面）</label><input type="text" id="addQ" placeholder="例: Apple"></div>
+            <div class="form-group"><label>問題の画像（任意）</label><input type="file" id="addQImg" accept="image/*" style="padding:10px;"></div>
+            <div class="form-group"><label>答え（裏面）</label><textarea id="addA" rows="3" placeholder="例: りんご"></textarea></div>
+            <div class="form-group"><label>答えの画像（任意）</label><input type="file" id="addAImg" accept="image/*" style="padding:10px;"></div>
+          </div>
+
+         <!-- 追加：範囲登録フォーム -->
+         <div id="addRangeForm" class="hidden">
+          <div class="form-group"><label>学習範囲・ページ番号</label><input type="text" id="addRangeQ" placeholder="例: P.10〜P.25 / 章末問題1〜10"></div>
+          <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 15px;">※範囲登録の場合、学習時に裏面（答え）に行かずに表面だけで評価できます。</p>
+        </div>
+
           <button onclick="addCard()" class="btn">保存</button>
         </div>
         <div id="tab-list" class="hidden"><div id="cardList" style="margin-top: 10px;"></div></div>
@@ -364,7 +394,10 @@
     show('tab-add', tab === 'add');
     show('tab-list', tab === 'list');
     
-    // 3. 既存の学習機能との連動（一覧タブが開かれたらリストを描画する）
+    // 3. タブに応じた連動処理
+    if (tab === 'add') {
+      applySheetTypeUI();
+    }
     if (tab === 'list') {
       renderList();
     }
@@ -537,10 +570,10 @@ function renderSubSelect() {
   const sheets = state.currentCourse ? (courseData[state.currentCourse] || []) : [];
   
   if (sheets.length === 0) {
-    if (sSel) sSel.innerHTML = '<option value="">(シートがありません)</option>';
+    if (sSel) sSel.innerHTML = '<option value="">(区分・範囲がありません)</option>';
     state.subject = ''; state.cards = []; state.queue = [];
     const qArea = $('qArea');
-    if (qArea) qArea.innerText = 'この教材にはまだシートがありません。「➕ 追加」を押してシートを作成してください。';
+    if (qArea) qArea.innerText = 'この教材にはまだ区分・範囲の登録がありません。「➕ 追加」を押して区分・範囲を作成してください。';
     show('startCardBtn', false); show('showAnsBtn', false);
     if ($('cardStats')) $('cardStats').innerText = '';
     show('modeSettingBtn', false);
@@ -553,7 +586,7 @@ function renderSubSelect() {
   if (sSel) sSel.value = state.subject;
   
   if (typeof fetchCards === 'function') fetchCards();
-  show('modeSettingBtn', true);
+  // show('modeSettingBtn', true); は applySheetTypeUI で自動制御するため削除
 }
 
 function changeCourse() { state.currentCourse = $('courseSelect').value; renderSubSelect(); }
@@ -618,12 +651,18 @@ async function createSub() {
   const sName = prompt(`教材「${state.currentCourse}」の中に作るシート名を入力してください\n(例: 第1章、英文法基礎 など)`);
   if (!sName) return;
   if (sName.includes(SEP)) return alert(`名前に「${SEP}」を含めることはできません。`);
+
+  // 問題型か範囲型かの選択ダイアログ
+  const typeChoice = prompt(`追加するシートのタイプを選択してください:\n1: 問題型（一問一答形式）\n2: 範囲型（ページ・章の範囲学習）\n\n半角数字で 1 または 2 を入力してください。`, "1");
+  if (!typeChoice) return;
+  const sheetType = (typeChoice.trim() === '2') ? 'range' : 'question';
   
   const actualName = state.currentCourse === '基本の教材' ? sName : `${state.currentCourse}${SEP}${sName}`;
   msg('シートを作成中...');
   try {
     await sheetApi(':batchUpdate', 'POST', { requests: [{ addSheet: { properties: { title: actualName } } }] });
-    await sheetApi(`/values/${encodeURIComponent(actualName)}!A1:I1?valueInputOption=USER_ENTERED`, 'PUT', { values: [['ID', 'Question', 'Answer', 'EF', 'Interval', 'Repetitions', 'NextReview', 'Q_Image', 'A_Image']] });
+    // J1セルにタイプ情報(question / range)を記録
+    await sheetApi(`/values/${encodeURIComponent(actualName)}!A1:J1?valueInputOption=USER_ENTERED`, 'PUT', { values: [['ID', 'Question', 'Answer', 'EF', 'Interval', 'Repetitions', 'NextReview', 'Q_Image', 'A_Image', sheetType]] });
     
     msg('シートを作成しました！');
     state.subject = actualName;
@@ -679,12 +718,20 @@ async function loadDriveImg(id, imgId, boxId) {
   }
 }
 
-  async function fetchCards() {
+async function fetchCards() {
     if(!state.subject || !checkId()) return;
     msg('カードを読み込み中...');
     try {
-      const res = await sheetApi(`/values/${encodeURIComponent(state.subject)}!A2:I`);
-      const rows = res.values || [];
+      // A1:J の範囲を取得してJ1(ヘッダー行のJ列)からシートタイプを取得
+      const res = await sheetApi(`/values/${encodeURIComponent(state.subject)}!A1:J`);
+      const allRows = res.values || [];
+      
+      // 1行目(ヘッダー)からシートタイプを取得 (J1セル: J列はインデックス 9)
+      const headerRow = allRows[0] || [];
+      state.currentSheetType = headerRow[9] || 'both'; // 記録がない旧シートは従来通り両方切り替え可
+      
+      // データ行（2行目以降）
+      const rows = allRows.slice(1);
       state.cards = rows.map((r, i) => ({
         rowIndex: i + 2,
         id: r[0],
@@ -697,6 +744,9 @@ async function loadDriveImg(id, imgId, boxId) {
         qImg: r[7] || '',
         aImg: r[8] || ''
       }));
+
+      // 追加タブの表示フォームを自動制御
+      applySheetTypeUI();
 
       const now = Date.now();
       state.queue = [];
@@ -774,7 +824,7 @@ async function loadDriveImg(id, imgId, boxId) {
         }, limit - elapsed);
       }
     } else if (sets.mode === 'logical') {
-      btns[3].innerText = '簡単(4)';
+      btns[3].innerText = '簡単';
       const limit = (sets.time || 180) * 1000;
       
       if (elapsed >= limit) {
@@ -789,7 +839,7 @@ async function loadDriveImg(id, imgId, boxId) {
         }, limit - elapsed);
       }
     } else {
-      btns[3].innerText = '簡単(4)';
+      btns[3].innerText = '簡単';
     }
   }
 
@@ -856,32 +906,109 @@ async function evalCard(quality) {
     return (await res.json()).id;
   }
 
-  async function addCard() {
+// 追加：登録タイプの切り替え処理
+let currentAddType = 'question';
+  function switchAddType(type) {
+    currentAddType = type;
+    if (type === 'question') {
+      $('addTypeQuestionBtn').style.background = 'var(--primary)';$('addTypeQuestionBtn').style.color = '#fff';
+      $('addTypeRangeBtn').style.background = '#ccc';
+      $('addTypeRangeBtn').style.color = '#333';
+      show('addQuestionForm', true);
+      show('addRangeForm', false);
+    } else {
+      $('addTypeRangeBtn').style.background = 'var(--primary)';$('addTypeRangeBtn').style.color = '#fff';
+      $('addTypeQuestionBtn').style.background = '#ccc';
+      $('addTypeQuestionBtn').style.color = '#333';
+      show('addQuestionForm', false);
+      show('addRangeForm', true);
+    }
+  }
+
+// ▼ ここに追加（配置） ▼
+// シートタイプに応じて追加フォームの表示を自動切り替える関数
+function applySheetTypeUI() {
+  const type = state.currentSheetType || 'both';
+
+  if (type === 'question') {
+    // 問題型：切替ボタンを隠し、「問題追加」のみを表示
+    show('addTypeSelectorGroup', false);
+    switchAddType('question');
+    show('modeSettingBtn', true); // ★追加：設定ボタンを表示
+  } else if (type === 'range') {
+    // 範囲型：切替ボタンを隠し、「範囲登録」のみを表示
+    show('addTypeSelectorGroup', false);
+    switchAddType('range');
+    show('modeSettingBtn', false); // ★追加：設定ボタンを非表示
+    
+    // ★追加：範囲型の場合は強制的に通常モード(normal)に固定・保存する
+    const sets = JSON.parse(localStorage.getItem('studySettings') || '{}');
+    if (!sets[state.subject] || sets[state.subject].mode !== 'normal') {
+      sets[state.subject] = { mode: 'normal', time: 180 };
+      localStorage.setItem('studySettings', JSON.stringify(sets));
+    }
+  } else {
+    // 旧シート（未設定）：切替ボタンを表示して手動切替可能に
+    show('addTypeSelectorGroup', true);
+    switchAddType('question');
+    show('modeSettingBtn', true); // ★追加：設定ボタンを表示
+  }
+}
+// ▲ ここまで ▲
+
+// 修正：範囲登録に対応した保存処理
+async function addCard() {
     if(!checkId()) return;
-    const q = $('addQ').value.trim(), a = $('addA').value.trim(), qF = $('addQImg').files[0], aF = $('addAImg').files[0];
-    if(!q && !qF || !a && !aF) return alert('問題と答えは文字か画像が必要です');
+    let q = '', a = '', qF = null, aF = null;
+
+    if (currentAddType === 'range') {
+      q = $('addRangeQ').value.trim();
+      // 画像取得を削除し、nullを明示
+      qF = null; 
+      a = '[RANGE]'; // 範囲登録を示す特殊フラグ
+      // テキストのみの必須チェックに変更
+      if (!q) return alert('学習範囲を入力してください'); 
+    } else {
+      q = $('addQ').value.trim();
+      a = $('addA').value.trim();
+      qF = $('addQImg').files[0];
+      aF = $('addAImg').files[0];
+      if(!q && !qF || !a && !aF) return alert('問題と答えは文字か画像が必要です');
+    }
+
     msg('保存中...');
     try {
       const [qId, aId] = await Promise.all([uploadDrive(qF), uploadDrive(aF)]);
       await sheetApi(`/values/${encodeURIComponent(state.subject)}!A:I:append?valueInputOption=USER_ENTERED`, 'POST', { values: [[state.cards.length+1, q, a, 2.5, 0, 0, 0, qId, aId]] });
-      $('addQ').value = $('addA').value = $('addQImg').value = $('addAImg').value = '';
+      $('addQ').value =$('addA').value = $('addQImg').value =$('addAImg').value = '';
+      // 範囲画像のフォームリセット処理を削除
+      $('addRangeQ').value = ''; 
       await fetchCards(); switchLibTab('anki');
     } catch { alert('保存失敗'); msg('エラー'); }
   }
 
   function renderList() {
     if(!state.cards.length) return $('cardList').innerHTML = '<p style="text-align:center; padding:20px; color:#888;">カードがありません</p>';
-    $('cardList').innerHTML = state.cards.map((c, i) => `
-      <div class="card-item"><div class="card-info"><strong>ID: ${c.id}</strong><br><span style="color:var(--text-sub); font-size:0.75rem;">【問】</span>${c.q}
+    $('cardList').innerHTML = state.cards.map((c, i) => {
+      const isRange = c.a === '[RANGE]';
+      const ansDisp = isRange ? '<span style="color:var(--accent); font-weight:bold;">[範囲登録 (裏面なし)]</span>' : c.a;
+      return `
+      <div class="card-item"><div class="card-info"><strong>ID: ${c.id}</strong><br><span style="color:var(--text-sub); font-size:0.75rem;">【問/範囲】</span>${c.q}
           <div id="lqBox_${i}" class="hidden" style="margin:5px 0;">
            <img id="lqImg_${i}" style="max-height:60px; border-radius:4px; cursor:zoom-in;" onclick="openImageModal(this.src)">
           </div>
-          <div style="border-top:1px dashed var(--border); margin:8px 0; padding-top:8px;"><span style="color:var(--text-sub); font-size:0.75rem;">【答】</span>${c.a}</div>
-          <div id="laBox_${i}" class="hidden">
+          <div style="border-top:1px dashed var(--border); margin:8px 0; padding-top:8px;"><span style="color:var(--text-sub); font-size:0.75rem;">【答】</span>${ansDisp}</div>
+<div id="laBox_${i}" class="hidden">
             <img id="laImg_${i}" style="max-height:60px; border-radius:4px; cursor:zoom-in;" onclick="openImageModal(this.src)">
           </div>
           </div>
-        <button class="btn-action" style="background:#E74C3C;" onclick="delCard(${i})">削除</button></div>`).join('');
+        <div style="display:flex; flex-direction:column; gap:8px; justify-content:center;">
+          <!-- ▼ 追加：「この問題・範囲を学習する」ボタン ▼ -->
+          <button class="btn-action" style="background:var(--primary);" onclick="solveSpecificCard(${i})">学習する</button>
+          <button class="btn-action" style="background:#E74C3C;" onclick="delCard(${i})">削除</button>
+        </div>
+      </div>`;
+    }).join('');
     state.cards.forEach((c, i) => { loadDriveImg(c.qImg, `lqImg_${i}`, `lqBox_${i}`); loadDriveImg(c.aImg, `laImg_${i}`, `laBox_${i}`); });
   }
 
@@ -1011,6 +1138,10 @@ $('startTimer').onclick = () => {
     } catch { msg('レポート読込失敗'); }
   }
 
+// ▼ 変更・追加：ランキング取得とタブ切り替え処理 ▼
+let currentRankingTab = 'today';
+  let cachedRankingData = [];
+
   async function fetchRanking() {
     if (!state.masterSheetId || state.masterSheetId === 'YOUR_MASTER_SHEET_ID_HERE') {
       $('rankingListArea').innerHTML = '<p style="text-align:center; color:#E74C3C;">管理者設定：マスターシートIDが未設定です。</p>';
@@ -1019,35 +1150,8 @@ $('startTimer').onclick = () => {
     msg('ランキング読込中...');
     try {
       const res = await sheetApi('/values/Ranking!A2:C', 'GET', null, state.masterSheetId);
-      const rows = res.values || [];
-      const todayStr = new Date().toLocaleDateString('ja-JP');
-
-      const todayRanking = rows
-        .filter(r => r[0] === todayStr && r[1] && r[2]) 
-        .map(r => ({ name: r[1], time: parseFloat(r[2]) }))
-        .sort((a, b) => b.time - a.time);
-
-      if (todayRanking.length === 0) {
-        $('rankingListArea').innerHTML = '<p style="text-align:center; color:#888;">今日の学習記録はまだありません</p>';
-      } else {
-        let html = '';
-        todayRanking.forEach((item, index) => {
-          const rankNum = index + 1;
-          let rankClass = '';
-          if (rankNum === 1) rankClass = 'rank-1';
-          if (rankNum === 2) rankClass = 'rank-2';
-          if (rankNum === 3) rankClass = 'rank-3';
-
-          html += `
-            <div class="ranking-item">
-              <div class="rank-badge ${rankClass}">${rankNum}</div>
-              <div class="rank-name">${item.name}</div>
-              <div class="rank-time">${item.time.toFixed(1)} <span style="font-size:0.8rem; color:#888;">分</span></div>
-            </div>
-          `;
-        });
-        $('rankingListArea').innerHTML = html;
-      }
+      cachedRankingData = res.values || []; // データをキャッシュする
+      renderRankingList(); // 描画処理へ
       msg('ランキング更新完了');
     } catch (e) {
       $('rankingListArea').innerHTML = '<p style="text-align:center; color:#E74C3C;">ランキングの取得に失敗しました。<br>権限設定を確認してください。</p>';
@@ -1055,6 +1159,61 @@ $('startTimer').onclick = () => {
       console.error(e);
     }
   }
+
+  function switchRankingTab(tab) {
+    currentRankingTab = tab;
+    // タブの見た目変更
+    $('rankTabToday').classList.toggle('active', tab === 'today');$('rankTabYesterday').classList.toggle('active', tab === 'yesterday');
+    
+    // 説明文の切り替え
+    $('rankingDesc').innerText = tab === 'today' 
+      ? '※今日（0時以降）の学習時間が表示されます' 
+      : '※昨日の最終的な学習時間が表示されます';
+      
+    // キャッシュしたデータから再描画（APIリクエスト不要）
+    renderRankingList();
+  }
+
+  function renderRankingList() {
+    if (!cachedRankingData.length) {
+      $('rankingListArea').innerHTML = '<p style="text-align:center; color:#888;">学習記録はまだありません</p>';
+      return;
+    }
+
+    // 今日の日付と昨日の日付を計算
+    const today = new Date();
+    const targetDate = currentRankingTab === 'today' ? today : new Date(today.getTime() - 86400000);
+    const targetDateStr = targetDate.toLocaleDateString('ja-JP');
+
+    // 選択された日付に一致するデータを抽出してソート
+    const filteredRanking = cachedRankingData
+      .filter(r => r[0] === targetDateStr && r[1] && r[2]) 
+      .map(r => ({ name: r[1], time: parseFloat(r[2]) }))
+      .sort((a, b) => b.time - a.time);
+
+    if (filteredRanking.length === 0) {
+      $('rankingListArea').innerHTML = `<p style="text-align:center; color:#888;">${currentRankingTab === 'today' ? '今日' : '昨日'}の学習記録はまだありません</p>`;
+    } else {
+      let html = '';
+      filteredRanking.forEach((item, index) => {
+        const rankNum = index + 1;
+        let rankClass = '';
+        if (rankNum === 1) rankClass = 'rank-1';
+        if (rankNum === 2) rankClass = 'rank-2';
+        if (rankNum === 3) rankClass = 'rank-3';
+
+        html += `
+          <div class="ranking-item">
+            <div class="rank-badge ${rankClass}">${rankNum}</div>
+            <div class="rank-name">${item.name}</div>
+            <div class="rank-time">${item.time.toFixed(1)} <span style="font-size:0.8rem; color:#888;">分</span></div>
+          </div>
+        `;
+      });
+      $('rankingListArea').innerHTML = html;
+    }
+  }
+  // ▲ 追加・修正ここまで ▲
 
 // ▼ 修正：saveMyPage関数 ▼
 async function saveMyPage() {
@@ -1238,13 +1397,119 @@ function initAdvancedModes() {
 
   let isContinuousSolving = false; 
 
+// 本日復習すべきシート一覧を表示・選択可能にする関数
+async function renderTodaySheetsPicker() {
+    const picker = $('todaySheetsPicker');
+    if (!picker) return;
+
+    if (isContinuousSolving || !state.cards || state.cards.length === 0) {
+      picker.innerHTML = '';
+      return;
+    }
+
+    const now = Date.now();
+    const dueCards = [];
+
+    // 現在のシートから今日復習期日が来ている問題（表面）を抽出
+    state.cards.forEach((c, idx) => {
+      if (!c.next || c.next <= now) {
+        dueCards.push({ card: c, index: idx });
+      }
+    });
+
+    if (dueCards.length === 0) {
+      picker.innerHTML = `
+        <div style="background:var(--surface); padding:10px 14px; border-radius:10px; border:1px solid var(--border); text-align:center; margin-bottom:12px;">
+          <span style="color:var(--primary); font-weight:bold; font-size:0.85rem;">✨ 本日復習すべき問題はありません！</span>
+        </div>`;
+      return;
+    }
+
+    let html = `
+      <div style="background: var(--surface); padding: 12px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 12px;">
+        <div style="font-size: 0.85rem; font-weight: bold; color: var(--primary); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center;">
+          <span>📝 今日学習する問題・範囲の一覧 (タップして個別に学習する):</span>
+          <span style="font-size:0.75rem; color:var(--text-sub);">残り ${dueCards.length} 問</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+    `;
+
+    dueCards.forEach(item => {
+      const qText = item.card.q ? (item.card.q.length > 28 ? item.card.q.substring(0, 28) + '...' : item.card.q) : '(画像問題)';
+      html += `
+        <div onclick="solveSpecificCard(${item.index})" style="background: var(--bg); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+          <div style="text-align: left; font-size: 0.9rem; font-weight: bold; color: var(--text-main); flex: 1; padding-right: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <span style="color:var(--primary); margin-right:6px;">問${item.card.id}:</span>${qText}
+          </div>
+          <button class="btn-action" style="background:var(--primary); font-size:0.75rem; padding:4px 10px; white-space:nowrap;">学習する</button>
+        </div>
+      `;
+    });
+
+    html += `</div></div>`;
+    picker.innerHTML = html;
+}
+
+// ドロップダウン変更時にカードデータを再取得して初期状態に戻す
+function changeSheetFromPicker(sheetActualName) {
+  state.subject = sheetActualName;
+  const subSel = $('subSelect');
+  if (subSel) subSel.value = sheetActualName;
+  isContinuousSolving = false;
+  fetchCards();
+}
+
+// 1つのシート解き終わり後に最初の画面（学習スタート待機状態）に戻る関数
+function resetToInitialSolvingState() {
+    isContinuousSolving = false;
+    show('interruptBtn', false); // 追加
+    
+    // ▼ 追加：隠していたUI要素を元に戻す
+    document.querySelector('.app-header').classList.remove('hidden');
+    document.querySelector('.bottom-nav').classList.remove('hidden');
+    document.querySelector('.lib-tabs').classList.remove('hidden');
+    $('subjectSection').classList.remove('hidden');
+    // ▲ 追加ここまで
+    
+    fetchCards();
+}
+
   if (typeof showNext === 'function') {
   const _origShowNext = showNext;
   showNext = function() {
     _origShowNext(); 
     
-    if (!state.queue || !state.queue.length) {
+// ▼ シート内のすべての問題が終了した時の処理 ▼
+if (!state.queue || !state.queue.length) {
       isContinuousSolving = false;
+      show('interruptBtn', false); // 追加
+      
+      // ▼ 追加：問題終了時にUIを元に戻す
+      document.querySelector('.app-header').classList.remove('hidden');
+      document.querySelector('.bottom-nav').classList.remove('hidden');
+      document.querySelector('.lib-tabs').classList.remove('hidden');
+      $('subjectSection').classList.remove('hidden');
+      // ▲ 追加ここまで
+
+      show('startCardBtn', false);
+      show('showAnsBtn', false);
+      show('qImgBox', false);
+      show('aArea', false);
+      show('evalBox', false);
+
+      const qArea = $('qArea');
+      if (qArea) {
+        qArea.innerHTML = `
+          <div style="text-align:center; padding:20px 10px;">
+            <div style="font-size:2.5rem; margin-bottom:10px;">🎉</div>
+            <div style="font-weight:bold; font-size:1.2rem; color:var(--primary); margin-bottom:15px;">この問題・範囲の学習が完了しました！</div>
+            <button onclick="resetToInitialSolvingState()" class="btn" style="background:var(--accent); font-size:0.95rem; padding:12px 20px;">
+              🔄 最初の画面（シート選択・学習スタート）に戻る
+            </button>
+          </div>
+        `;
+      }
+      renderTodaySheetsPicker();
       return;
     }
     
@@ -1252,7 +1517,7 @@ function initAdvancedModes() {
     if (!startBtn) {
       startBtn = document.createElement('button');
       startBtn.id = 'startCardBtn';
-      startBtn.innerText = '👉 問題を解く（計測スタート）';
+      startBtn.innerText = '👉 学習スタート';
       startBtn.style.cssText = 'width:100%; padding:15px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; margin-bottom:15px; cursor:pointer; box-shadow:var(--shadow-sm);';
       startBtn.onclick = startSolving;
       
@@ -1267,27 +1532,38 @@ function initAdvancedModes() {
       if (qArea) {
         qArea.removeAttribute('data-orig-html'); 
         qArea.setAttribute('data-orig-html', qArea.innerHTML); 
-        qArea.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:30px 10px; font-style:italic; font-size:1rem;">⚠️ ボタンを押すと問題が表示され、制限時間の計測が始まります。</div>';
+        qArea.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:30px 10px; font-style:italic; font-size:1rem;">⚠️ [学習スタート] ボタンを押してテキストの学習をスタートしてください。</div>';
       }
       
       show('startCardBtn', true);
       show('showAnsBtn', false);
       show('aArea', false);
       show('evalBox', false);
+      renderTodaySheetsPicker(); // シート選択ドロップダウンの更新
       
       if (modeTimeout) clearTimeout(modeTimeout);
       
     } else {
+      const picker = $('todaySheetsPicker');
+      if (picker) picker.innerHTML = ''; // 学習中時はドロップダウンを非表示
       show('startCardBtn', false);
-      show('showAnsBtn', true);
-      show('aArea', false);
-      show('evalBox', false);
+      
+      // 範囲登録（[RANGE]）の場合は裏面（答え）に行かず直接評価ボタンを表示
+      const c = state.cards[state.curIdx];
+      if (c && c.a === '[RANGE]') {
+        show('showAnsBtn', false);
+        show('aArea', false);
+        show('evalBox', true);
+      } else {
+        show('showAnsBtn', true);
+        show('aArea', false);
+        show('evalBox', false);
+      }
       
       cardStartTime = Date.now();
       
       const sets = JSON.parse(localStorage.getItem('studySettings') || '{}')[state.subject] || { mode: 'normal', time: 180 };
       if (modeTimeout) clearTimeout(modeTimeout);
-      
       if (sets.mode === 'simple') {
         modeTimeout = setTimeout(() => {
           const btns = $('evalBox').querySelectorAll('button');
@@ -1313,6 +1589,14 @@ function initAdvancedModes() {
 
 function startSolving() {
   isContinuousSolving = true; 
+  show('interruptBtn', true); // 追加
+  
+  // ▼ 追加：画面を広く使うために不要なUIを隠す
+  document.querySelector('.app-header').classList.add('hidden');
+  document.querySelector('.bottom-nav').classList.add('hidden');
+  document.querySelector('.lib-tabs').classList.add('hidden');
+  $('subjectSection').classList.add('hidden');
+  // ▲ 追加ここまで
   
   const qArea = $('qArea');
   if (qArea && qArea.hasAttribute('data-orig-html')) {
@@ -1320,7 +1604,16 @@ function startSolving() {
   }
   
   show('startCardBtn', false); 
-  show('showAnsBtn', true);    
+  
+  // 範囲登録（[RANGE]）の場合は直接評価ボタンを表示
+  const c = state.cards[state.curIdx];
+  if (c && c.a === '[RANGE]') {
+    show('showAnsBtn', false);
+    show('aArea', false);
+    show('evalBox', true);
+  } else {
+    show('showAnsBtn', true);
+  }
   
   cardStartTime = Date.now();
   
@@ -1352,6 +1645,7 @@ if (typeof fetchCards === 'function') {
   const _origFetchCards = fetchCards;
   fetchCards = async function() {
     isContinuousSolving = false; 
+    show('interruptBtn', false); // 追加
     await _origFetchCards();
   };
 }
@@ -1809,6 +2103,83 @@ function openImageModal(src) {
 }
 // ▲ 追加ここまで ▲
 
+// ▼ 統合・修正：一覧や「今日学習する問題」から特定の1問を選んで画面全体で解く処理 ▼
+function solveSpecificCard(idx) {
+  if (idx < 0 || !state.cards || idx >= state.cards.length) return;
+  
+  // 1. 暗記タブを表示し、選択した問題のみを学習キューにセット
+  switchLibTab('anki');
+  state.queue = [idx];
+  state.curIdx = idx;
+  
+  // 2. 学習モードのフラグ設定とUI表示切り替え
+  isContinuousSolving = true;
+  show('interruptBtn', true);
+  show('startCardBtn', false);
+  
+  // 画面を広く使うためにヘッダー、ナビ、タブ、教材設定を非表示（画面全体化）
+  document.querySelector('.app-header').classList.add('hidden');
+  document.querySelector('.bottom-nav').classList.add('hidden');
+  document.querySelector('.lib-tabs').classList.add('hidden');
+  $('subjectSection').classList.add('hidden');
+  
+  // メッセージなどの一時エリア復元
+  const qArea = $('qArea');
+  if (qArea && qArea.hasAttribute('data-orig-html')) {
+    qArea.innerHTML = qArea.getAttribute('data-orig-html');
+  }
+  
+  // 3. 対象カードの表示描画
+  const c = state.cards[idx];
+  $('qArea').innerText = c.q;
+  $('aText').innerText = c.a;
+  loadDriveImg(c.qImg, 'qImg', 'qImgBox');
+  loadDriveImg(c.aImg, 'aImg', 'aImgBox');
+  
+  const stats = $('cardStats');
+  if (stats) stats.innerText = `個別学習中 (問${c.id})`;
+  
+  // 今日学習する問題一覧（ドロップダウン/リスト）を隠す
+  const picker = $('todaySheetsPicker');
+  if (picker) picker.innerHTML = '';
+  
+  // 4. 範囲型（[RANGE]）と問題型の表示制御
+  if (c.a === '[RANGE]') {
+    show('showAnsBtn', false);
+    show('aArea', false);
+    show('evalBox', true);
+  } else {
+    show('showAnsBtn', true);
+    show('aArea', false);
+    show('evalBox', false);
+  }
+  
+  // 5. 学習タイマーおよび学習モード（単純暗記・思考モード等）のタイマーセット
+  cardStartTime = Date.now();
+  if (modeTimeout) clearTimeout(modeTimeout);
+  
+  const sets = JSON.parse(localStorage.getItem('studySettings') || '{}')[state.subject] || { mode: 'normal', time: 180 };
+  if (sets.mode === 'simple') {
+    modeTimeout = setTimeout(() => {
+      const btns = $('evalBox').querySelectorAll('button');
+      if (btns && btns.length >= 4) {
+        btns[3].style.opacity = '0.2';
+        btns[3].disabled = true;
+      }
+    }, 5000);
+  } else if (sets.mode === 'logical') {
+    const limit = (sets.time || 180) * 1000;
+    modeTimeout = setTimeout(() => {
+      const btns = $('evalBox').querySelectorAll('button');
+      if (btns && btns.length >= 4) {
+        btns[1].style.opacity = '0.2'; btns[1].disabled = true;
+        btns[2].style.opacity = '0.2'; btns[2].disabled = true;
+        btns[3].style.opacity = '0.2'; btns[3].disabled = true;
+      }
+    }, limit);
+  }
+}
+// ▲ 修正ここまで ▲
 </script>
 </body>
 </html>
