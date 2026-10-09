@@ -230,14 +230,14 @@
             
             <div style="margin-top: 8px; padding-top: 14px; border-top: 1px dashed var(--border); text-align: center;">
               <button id="modeSettingBtn" onclick="openSubjectSettings()" class="btn-action hidden" style="background: #7F8C8D; width: 100%; padding: 10px; font-size: 0.9rem; font-weight: bold; border-radius: 8px;">
-                ⚙️ このシートの学習設定・難問分割
+                ⚙️ この問題の学習設定・難問分割
               </button>
             </div>
             
           </div>
         </div>
         <div class="lib-tabs">
-          <div class="lib-tab active" onclick="switchLibTab('anki')">暗記</div>
+          <div class="lib-tab active" onclick="switchLibTab('anki')">演習</div>
           <div class="lib-tab" onclick="switchLibTab('add')">追加</div>
           <div class="lib-tab" onclick="switchLibTab('list')">一覧</div>
         </div>
@@ -1504,7 +1504,7 @@ if (!state.queue || !state.queue.length) {
             <div style="font-size:2.5rem; margin-bottom:10px;">🎉</div>
             <div style="font-weight:bold; font-size:1.2rem; color:var(--primary); margin-bottom:15px;">この問題・範囲の学習が完了しました！</div>
             <button onclick="resetToInitialSolvingState()" class="btn" style="background:var(--accent); font-size:0.95rem; padding:12px 20px;">
-              🔄 最初の画面（シート選択・学習スタート）に戻る
+              🔄 最初の画面に戻る
             </button>
           </div>
         `;
