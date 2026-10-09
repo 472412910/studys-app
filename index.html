@@ -236,10 +236,10 @@
             
           </div>
         </div>
-        <div class="lib-tabs">
-          <div class="lib-tab active" onclick="switchLibTab('anki')">演習</div>
-          <div class="lib-tab" onclick="switchLibTab('add')">追加</div>
-          <div class="lib-tab" onclick="switchLibTab('list')">一覧</div>
+        <div id="libraryTabs" class="lib-tabs">
+          <div id="tabBtn-anki" class="lib-tab active" onclick="switchLibTab('anki')">暗記</div>
+          <div id="tabBtn-add" class="lib-tab" onclick="switchLibTab('add')">追加</div>
+          <div id="tabBtn-list" class="lib-tab" onclick="switchLibTab('list')">一覧</div>
         </div>
         <div id="tab-anki">
           <!-- ▼ 追加：今日やるべきシートが複数ある場合に選択できるエリア ▼ -->
@@ -730,8 +730,8 @@ async function fetchCards() {
       const headerRow = allRows[0] || [];
       state.currentSheetType = headerRow[9] || 'both'; // 記録がない旧シートは従来通り両方切り替え可
       
-      // データ行（2行目以降）
-      const rows = allRows.slice(1);
+// データ行（2行目以降）
+const rows = allRows.slice(1);
       state.cards = rows.map((r, i) => ({
         rowIndex: i + 2,
         id: r[0],
@@ -747,6 +747,21 @@ async function fetchCards() {
 
       // 追加タブの表示フォームを自動制御
       applySheetTypeUI();
+
+      // ★ 追加：問題・範囲が0件の場合は「追加」タブのみ表示させる
+      if (state.cards.length === 0) {
+        show('tabBtn-anki', false);
+        show('tabBtn-list', false);
+        switchLibTab('add'); // 強制的に追加画面に切り替え
+      } else {
+        show('tabBtn-anki', true);
+        show('tabBtn-list', true);
+        
+        // 問題が追加されタブが復活した場合は、暗記タブをアクティブにする
+        if ($('tabBtn-anki').classList.contains('hidden')) {
+           switchLibTab('anki');
+        }
+      }
 
       const now = Date.now();
       state.queue = [];
@@ -1462,17 +1477,40 @@ function changeSheetFromPicker(sheetActualName) {
 // 1つのシート解き終わり後に最初の画面（学習スタート待機状態）に戻る関数
 function resetToInitialSolvingState() {
     isContinuousSolving = false;
-    show('interruptBtn', false); // 追加
+    show('interruptBtn', false); 
     
     // ▼ 追加：隠していたUI要素を元に戻す
     document.querySelector('.app-header').classList.remove('hidden');
     document.querySelector('.bottom-nav').classList.remove('hidden');
-    document.querySelector('.lib-tabs').classList.remove('hidden');
+    $('libraryTabs').classList.remove('hidden'); 
     $('subjectSection').classList.remove('hidden');
     // ▲ 追加ここまで
     
     fetchCards();
 }
+
+// ▼ ここから追加：リストから個別に学習する機能とUI非表示の連動 ▼
+function solveSpecificCard(idx) {
+  // 対象の問題だけを学習キューにセット
+  state.queue = [idx];
+  
+  // 強制的に「暗記」タブ画面に切り替え
+  switchLibTab('anki');
+  
+  // 学習中の状態にする
+  isContinuousSolving = true; 
+  show('interruptBtn', true); 
+  
+  // 画面を広く使うために、ヘッダー、フッター、「暗記・追加・一覧」タブを隠す
+  document.querySelector('.app-header').classList.add('hidden');
+  document.querySelector('.bottom-nav').classList.add('hidden');
+  $('libraryTabs').classList.add('hidden'); 
+  $('subjectSection').classList.add('hidden');
+  
+  // 問題を表示して即座に学習開始
+  showNext();
+}
+// ▲ ここまで追加 ▲
 
   if (typeof showNext === 'function') {
   const _origShowNext = showNext;
@@ -1484,10 +1522,10 @@ if (!state.queue || !state.queue.length) {
       isContinuousSolving = false;
       show('interruptBtn', false); // 追加
       
-      // ▼ 追加：問題終了時にUIを元に戻す
-      document.querySelector('.app-header').classList.remove('hidden');
+// ▼ 追加：問題終了時にUIを元に戻す
+document.querySelector('.app-header').classList.remove('hidden');
       document.querySelector('.bottom-nav').classList.remove('hidden');
-      document.querySelector('.lib-tabs').classList.remove('hidden');
+      $('libraryTabs').classList.remove('hidden'); // ← ここを修正
       $('subjectSection').classList.remove('hidden');
       // ▲ 追加ここまで
 
@@ -1594,7 +1632,7 @@ function startSolving() {
   // ▼ 追加：画面を広く使うために不要なUIを隠す
   document.querySelector('.app-header').classList.add('hidden');
   document.querySelector('.bottom-nav').classList.add('hidden');
-  document.querySelector('.lib-tabs').classList.add('hidden');
+  $('libraryTabs').classList.add('hidden'); // ← ここを修正
   $('subjectSection').classList.add('hidden');
   // ▲ 追加ここまで
   
@@ -1647,6 +1685,7 @@ if (typeof fetchCards === 'function') {
     isContinuousSolving = false; 
     show('interruptBtn', false); // 追加
     await _origFetchCards();
+    renderTodaySheetsPicker(); // ★追加：シート変更時（データ取得完了時）に一覧を確実に更新する
   };
 }
 
@@ -2103,83 +2142,29 @@ function openImageModal(src) {
 }
 // ▲ 追加ここまで ▲
 
-// ▼ 統合・修正：一覧や「今日学習する問題」から特定の1問を選んで画面全体で解く処理 ▼
+// ▼ リスト・タスクから個別に1問学習する関数（標準の学習フローと連動） ▼
 function solveSpecificCard(idx) {
   if (idx < 0 || !state.cards || idx >= state.cards.length) return;
-  
-  // 1. 暗記タブを表示し、選択した問題のみを学習キューにセット
+
+  // 1. 暗記（演習）画面に切り替え
   switchLibTab('anki');
+
+  // 2. 対象の問題のみを学習キューにセット
   state.queue = [idx];
-  state.curIdx = idx;
   
-  // 2. 学習モードのフラグ設定とUI表示切り替え
+  // 3. 学習中フラグをONにし、中断ボタンを表示
   isContinuousSolving = true;
   show('interruptBtn', true);
-  show('startCardBtn', false);
   
-  // 画面を広く使うためにヘッダー、ナビ、タブ、教材設定を非表示（画面全体化）
+  // 4. 画面を広く使うため、ヘッダー・フッター・タブバー・教材選択セクションを非表示化
   document.querySelector('.app-header').classList.add('hidden');
   document.querySelector('.bottom-nav').classList.add('hidden');
-  document.querySelector('.lib-tabs').classList.add('hidden');
+  $('libraryTabs').classList.add('hidden');
   $('subjectSection').classList.add('hidden');
   
-  // メッセージなどの一時エリア復元
-  const qArea = $('qArea');
-  if (qArea && qArea.hasAttribute('data-orig-html')) {
-    qArea.innerHTML = qArea.getAttribute('data-orig-html');
-  }
-  
-  // 3. 対象カードの表示描画
-  const c = state.cards[idx];
-  $('qArea').innerText = c.q;
-  $('aText').innerText = c.a;
-  loadDriveImg(c.qImg, 'qImg', 'qImgBox');
-  loadDriveImg(c.aImg, 'aImg', 'aImgBox');
-  
-  const stats = $('cardStats');
-  if (stats) stats.innerText = `個別学習中 (問${c.id})`;
-  
-  // 今日学習する問題一覧（ドロップダウン/リスト）を隠す
-  const picker = $('todaySheetsPicker');
-  if (picker) picker.innerHTML = '';
-  
-  // 4. 範囲型（[RANGE]）と問題型の表示制御
-  if (c.a === '[RANGE]') {
-    show('showAnsBtn', false);
-    show('aArea', false);
-    show('evalBox', true);
-  } else {
-    show('showAnsBtn', true);
-    show('aArea', false);
-    show('evalBox', false);
-  }
-  
-  // 5. 学習タイマーおよび学習モード（単純暗記・思考モード等）のタイマーセット
-  cardStartTime = Date.now();
-  if (modeTimeout) clearTimeout(modeTimeout);
-  
-  const sets = JSON.parse(localStorage.getItem('studySettings') || '{}')[state.subject] || { mode: 'normal', time: 180 };
-  if (sets.mode === 'simple') {
-    modeTimeout = setTimeout(() => {
-      const btns = $('evalBox').querySelectorAll('button');
-      if (btns && btns.length >= 4) {
-        btns[3].style.opacity = '0.2';
-        btns[3].disabled = true;
-      }
-    }, 5000);
-  } else if (sets.mode === 'logical') {
-    const limit = (sets.time || 180) * 1000;
-    modeTimeout = setTimeout(() => {
-      const btns = $('evalBox').querySelectorAll('button');
-      if (btns && btns.length >= 4) {
-        btns[1].style.opacity = '0.2'; btns[1].disabled = true;
-        btns[2].style.opacity = '0.2'; btns[2].disabled = true;
-        btns[3].style.opacity = '0.2'; btns[3].disabled = true;
-      }
-    }, limit);
-  }
+  // 5. 既存の標準学習フローを呼び出し（タイマーや表示制御を自動連動）
+  showNext();
 }
-// ▲ 修正ここまで ▲
 </script>
 </body>
 </html>
