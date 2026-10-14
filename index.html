@@ -2164,6 +2164,12 @@ function openManualRecordModal() {
     if(isNaN(minutes) || minutes <= 0) {
       return alert('正しい学習時間（分）を半角数字で入力してください。');
     }
+
+    // ▼ 追加：1440分（24時間）以上の入力をブロックする処理 ▼
+    if(minutes >= 1440) {
+      return alert('1回の記録で1440分（24時間）以上は登録できません。正しい時間を入力してください。');
+    }
+    // ▲ 追加ここまで ▲
     
     msg('手動記録を保存中...');
     show('manualRecordModal', false);
