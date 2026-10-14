@@ -468,13 +468,27 @@
     if(view === 'calendar') loadCalendarTasks();
   }
 
-  async function sheetApi(path, method='GET', body=null, targetId = state.sheetId) {
+  async function sheetApi(path, method='GET', body=null, targetId = state.sheetId, retries = 3) {
     if (!targetId) throw new Error("Sheet ID is missing");
     const opts = { method, headers: { Authorization: `Bearer ${state.token}` } };
     if(body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-    const res = await fetch(path.startsWith('http') ? path : `https://sheets.googleapis.com/v4/spreadsheets/${targetId}${path}`, opts);
-    if(!res.ok) throw new Error(await res.text());
-    return res.headers.get('content-type')?.includes('json') ? res.json() : res;
+    
+    // ▼ 修正：API制限(429エラー)時に自動リトライする処理を追加 ▼
+    for (let i = 0; i < retries; i++) {
+      const res = await fetch(path.startsWith('http') ? path : `https://sheets.googleapis.com/v4/spreadsheets/${targetId}${path}`, opts);
+      if (res.ok) {
+        return res.headers.get('content-type')?.includes('json') ? res.json() : res;
+      }
+      if (res.status === 429) { // Too Many Requests (API制限)
+        // 待機時間を徐々に長くしてリトライ (1秒〜ランダム)
+        const waitTime = Math.pow(2, i) * 1000 + Math.random() * 1000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      throw new Error(await res.text());
+    }
+    throw new Error('API制限のリトライ回数を超えました');
+    // ▲ 修正ここまで ▲
   }
 
   window.onload = () => {
@@ -722,6 +736,10 @@ async function deleteSub() {
 }
 
 const imgCache = {};
+// ▼ 追加：キャッシュ管理用の変数 ▼
+const maxCacheSize = 30;
+const cacheKeys = [];
+// ▲ 追加ここまで ▲
 
 async function loadDriveImg(id, imgId, boxId) {
   if(!id) { show(boxId, false); return; }
@@ -736,7 +754,18 @@ async function loadDriveImg(id, imgId, boxId) {
         if (!res.ok) throw new Error('Network error');
         return res.blob();
       })
-      .then(blob => URL.createObjectURL(blob));
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        // ▼ 追加：メモリリークを防ぐためのキャッシュ解放処理 ▼
+        cacheKeys.push(id);
+        if (cacheKeys.length > maxCacheSize) {
+          const oldId = cacheKeys.shift();
+          imgCache[oldId].then(oldUrl => URL.revokeObjectURL(oldUrl)).catch(()=>{});
+          delete imgCache[oldId];
+        }
+        // ▲ 追加ここまで ▲
+        return url;
+      });
     }
     
     const url = await imgCache[id];
@@ -746,6 +775,10 @@ async function loadDriveImg(id, imgId, boxId) {
     img.src = ''; 
     show(boxId, false); 
     delete imgCache[id]; 
+    // ▼ 追加：エラー時のキャッシュキー削除 ▼
+    const idx = cacheKeys.indexOf(id);
+    if(idx > -1) cacheKeys.splice(idx, 1);
+    // ▲ 追加ここまで ▲
   }
 }
 
