@@ -410,6 +410,19 @@
     masterSheetId: '1rpP2oDsemJsw8ICJOBTqNkycQR-V2eIQ6fQzbiaYHdQ'
   };
 
+  // ▼ 追加：日付形式を「YYYY/M/D」に統一する関数 ▼
+  function getStandardDateStr(date) {
+    return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+  }
+  
+  function normalizeDateStr(str) {
+    if (!str) return '';
+    const d = new Date(str.replace(/-/g, '/'));
+    if (isNaN(d.getTime())) return str;
+    return getStandardDateStr(d);
+  }
+  // ▲ 追加ここまで ▲
+
   function switchLibTab(tab) {
     // 1. タブの見た目（アクティブ状態）を切り替える
     document.querySelectorAll('.lib-tab').forEach(el => {
@@ -1121,14 +1134,14 @@ async function saveStudyLog(currentSub, minutes) {
       ];
 
       if (state.masterSheetId && state.masterSheetId !== 'YOUR_MASTER_SHEET_ID_HERE') {
-        const todayStr = new Date().toLocaleDateString('ja-JP');
+        const todayStr = getStandardDateStr(new Date()); // 修正：統一フォーマット関数を使用
         let rankData = resRank.values || [];
         let rankFound = false;
         
         rankData = rankData.map(r => {
-          if (r[0] === todayStr && r[1] === state.nick) {
+          if (normalizeDateStr(r[0]) === todayStr && r[1] === state.nick) { // 修正：表記ゆれを吸収して比較
             rankFound = true;
-            return [r[0], r[1], (parseFloat(r[2] || 0) + minutes).toFixed(1)];
+            return [todayStr, r[1], (parseFloat(r[2] || 0) + minutes).toFixed(1)]; // 日付を統一して書き戻し
           }
           return r;
         });
@@ -1259,14 +1272,14 @@ let currentRankingTab = 'today';
       return;
     }
 
-    // 今日の日付と昨日の日付を計算
-    const today = new Date();
+// 今日の日付と昨日の日付を計算
+const today = new Date();
     const targetDate = currentRankingTab === 'today' ? today : new Date(today.getTime() - 86400000);
-    const targetDateStr = targetDate.toLocaleDateString('ja-JP');
+    const targetDateStr = getStandardDateStr(targetDate); // 修正：統一フォーマット関数を使用
 
     // 選択された日付に一致するデータを抽出してソート
     const filteredRanking = cachedRankingData
-      .filter(r => r[0] === targetDateStr && r[1] && r[2]) 
+      .filter(r => normalizeDateStr(r[0]) === targetDateStr && r[1] && r[2]) // 修正：表記ゆれを吸収して比較
       .map(r => ({ name: r[1], time: parseFloat(r[2]) }))
       .sort((a, b) => b.time - a.time);
 
@@ -1354,10 +1367,10 @@ async function fetchGlobalAverage() {
       let totalMinutes = 0;
       let validRecords = 0;
       
-      const todayStr = new Date().toLocaleDateString('ja-JP');
+      const todayStr = getStandardDateStr(new Date()); // 修正：統一フォーマット関数を使用
       
       rows.forEach(row => {
-        if (row[0] === todayStr) {
+        if (normalizeDateStr(row[0]) === todayStr) { // 修正：表記ゆれを吸収して比較
           const time = parseFloat(row[2]);
           if(!isNaN(time)) {
             totalMinutes += time;
